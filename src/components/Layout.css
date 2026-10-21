@@ -1,0 +1,53 @@
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.layout-brand {
+  font-weight: 600;
+}
+
+.layout-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.layout-nav a {
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.layout-nav a.active {
+  opacity: 1;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.layout-user {
+  opacity: 0.6;
+  font-size: 0.85rem;
+}
+
+.layout-nav button {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.layout-main {
+  flex: 1;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
