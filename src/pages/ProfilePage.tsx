@@ -1,7 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import sso from "../lib/sso";
-import "./ProfilePage.css";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function ProfilePage() {
   const { profile } = useAuth();
@@ -50,46 +55,78 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="profile-page">
-      <h1>Profile</h1>
-
-      <div className="profile-avatar">
-        {profile.photoURL ? (
-          <img src={profile.photoURL} alt="" />
-        ) : (
-          <div className="profile-avatar-placeholder">
-            {profile.firstName?.[0]}
-            {profile.lastName?.[0]}
-          </div>
-        )}
-        <label className="profile-avatar-upload">
-          {uploading ? "Uploading..." : "Change avatar"}
-          <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={uploading} hidden />
-        </label>
+    <div className="mx-auto flex max-w-sm flex-col gap-6 text-left">
+      <div>
+        <h1 className="mb-1">Profile</h1>
+        <p className="text-sm text-muted-foreground">Manage your account details.</p>
       </div>
 
-      <dl className="profile-meta">
-        <dt>Email</dt>
-        <dd>{profile.email}</dd>
-        <dt>User ID</dt>
-        <dd>{profile.id}</dd>
-      </dl>
+      <Card>
+        <CardContent className="flex flex-col gap-6">
+          <div className="flex items-center gap-4">
+            <div className="rounded-full bg-gradient-to-br from-primary to-brand-2 p-0.5">
+              <Avatar size="lg" className="size-16 bg-background">
+                <AvatarImage src={profile.photoURL ?? undefined} alt="" />
+                <AvatarFallback className="bg-transparent font-semibold text-primary">
+                  {profile.firstName?.[0]}
+                  {profile.lastName?.[0]}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+            <label className="cursor-pointer text-sm text-foreground underline">
+              {uploading ? "Uploading..." : "Change avatar"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                disabled={uploading}
+                hidden
+              />
+            </label>
+          </div>
 
-      <form onSubmit={handleSubmit} className="profile-form">
-        <label>
-          First name
-          <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-        </label>
-        <label>
-          Last name
-          <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-        </label>
-        {error && <p className="profile-error">{error}</p>}
-        {success && <p className="profile-success">Saved.</p>}
-        <button type="submit" disabled={saving}>
-          {saving ? "Saving..." : "Save changes"}
-        </button>
-      </form>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <dt className="opacity-60">Email</dt>
+            <dd className="m-0">{profile.email}</dd>
+            <dt className="opacity-60">User ID</dt>
+            <dd className="m-0 break-all">{profile.id}</dd>
+          </dl>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="firstName">First name</Label>
+              <Input
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="lastName">Last name</Label>
+              <Input
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+              />
+            </div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {success && (
+              <Alert>
+                <AlertDescription className="text-success">Saved.</AlertDescription>
+              </Alert>
+            )}
+            <Button type="submit" disabled={saving} className="self-start">
+              {saving ? "Saving..." : "Save changes"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

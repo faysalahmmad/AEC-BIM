@@ -10,11 +10,13 @@ export default function CallbackPage() {
     return (
       <div>
         <h1>Sign-in failed</h1>
-        <p>The link may have expired or already been used.</p>
+        <p className="mb-4 text-sm text-muted-foreground">
+          The link may have expired or already been used.
+        </p>
         <Link to="/login">Back to login</Link>
       </div>
     );
   }
 
-  return <p>Completing sign-in...</p>;
+  return <p className="text-sm text-muted-foreground">Completing sign-in...</p>;
 }

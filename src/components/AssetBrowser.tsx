@@ -1,10 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
-import "./AssetBrowser.css";
+import { ImageOff } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface AssetBrowserProps<T> {
   fetchAll: () => Promise<T[]>;
   fetchById: (id: string) => Promise<T>;
   getId: (item: T) => string;
+  getThumbnail?: (item: T) => string | null | undefined;
   renderListItem: (item: T) => ReactNode;
   renderDetail: (item: T) => ReactNode;
 }
@@ -13,6 +16,7 @@ export default function AssetBrowser<T>({
   fetchAll,
   fetchById,
   getId,
+  getThumbnail,
   renderListItem,
   renderDetail,
 }: AssetBrowserProps<T>) {
@@ -64,34 +68,55 @@ export default function AssetBrowser<T>({
     };
   }, [selectedId, fetchById]);
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p className="asset-browser-error">{error}</p>;
-  if (items.length === 0) return <p>No items found.</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+  if (error) return <p className="text-sm text-destructive">{error}</p>;
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">No items found.</p>;
 
   return (
-    <div className="asset-browser">
-      <ul className="asset-browser-list">
+    <div className="grid grid-cols-2 gap-6 text-left">
+      <div className="grid max-h-[480px] grid-cols-2 gap-3 overflow-y-auto pr-1">
         {items.map((item) => {
           const id = getId(item);
+          const thumb = getThumbnail?.(item);
+          const active = id === selectedId;
           return (
-            <li key={id}>
-              <button
-                type="button"
-                className={id === selectedId ? "active" : ""}
-                onClick={() => setSelectedId(id === selectedId ? null : id)}
-              >
-                {renderListItem(item)}
-              </button>
-            </li>
+            <button
+              key={id}
+              type="button"
+              onClick={() => setSelectedId(id === selectedId ? null : id)}
+              className={cn(
+                "group relative aspect-square overflow-hidden rounded-xl border-2 border-transparent bg-muted transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+                active && "border-primary shadow-lg shadow-primary/20",
+              )}
+            >
+              {thumb ? (
+                <img
+                  src={thumb}
+                  alt=""
+                  className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex size-full items-center justify-center text-muted-foreground">
+                  <ImageOff className="size-6" />
+                </div>
+              )}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
+                <p className="truncate text-xs font-medium text-white">{renderListItem(item)}</p>
+              </div>
+            </button>
           );
         })}
-      </ul>
+      </div>
       {selectedId && (
-        <div className="asset-browser-detail">
-          {detailLoading && <p>Loading detail...</p>}
-          {!detailLoading && detail && renderDetail(detail)}
-          {!detailLoading && !detail && <p>Could not load detail.</p>}
-        </div>
+        <Card>
+          <CardContent>
+            {detailLoading && <p className="text-sm text-muted-foreground">Loading detail...</p>}
+            {!detailLoading && detail && renderDetail(detail)}
+            {!detailLoading && !detail && (
+              <p className="text-sm text-muted-foreground">Could not load detail.</p>
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );

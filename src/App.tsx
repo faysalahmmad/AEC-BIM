@@ -7,6 +7,9 @@ import CallbackPage from "./pages/CallbackPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import AssetsPage from "./pages/AssetsPage";
+import OrganizationsPage from "./pages/OrganizationsPage";
+import OrganizationDetailPage from "./pages/OrganizationDetailPage";
+import SpaceDetailPage from "./pages/SpaceDetailPage";
 
 function App() {
   return (
@@ -20,6 +23,12 @@ function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/assets" element={<AssetsPage />} />
+          <Route path="/organizations" element={<OrganizationsPage />} />
+          <Route path="/organizations/:orgId" element={<OrganizationDetailPage />} />
+          <Route
+            path="/organizations/:orgId/spaces/:spaceId"
+            element={<SpaceDetailPage />}
+          />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -2,7 +2,12 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import sso from "../lib/sso";
 import { useAuth } from "../context/AuthContext";
-import "./AuthForm.css";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Mode = "link" | "code";
 type Step = "form" | "sent" | "verify";
@@ -53,85 +58,123 @@ export default function RegisterPage() {
     }
   };
 
+  const startOver = () => {
+    setError(null);
+    setOtpCode("");
+    setStep("form");
+  };
+
   return (
-    <div className="auth-form">
-      <h1>Register</h1>
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 text-left">
+      <div>
+        <h1 className="mb-1">Register</h1>
+        <p className="text-sm text-muted-foreground">Create your Avatar SSO account.</p>
+      </div>
 
-      {step === "sent" && (
-        <p className="auth-form-info">
-          Check <strong>{email}</strong> for a confirmation link, then open it in this browser.
-        </p>
-      )}
+      <Card>
+        <CardContent className="flex flex-col gap-5">
+          {step === "sent" && (
+            <>
+              <Alert>
+                <AlertDescription>
+                  Check <strong className="text-foreground">{email}</strong> for a confirmation
+                  link, then open it in this browser.
+                </AlertDescription>
+              </Alert>
+              <Button type="button" variant="ghost" onClick={startOver}>
+                Use a different email
+              </Button>
+            </>
+          )}
 
-      {step === "verify" && (
-        <form onSubmit={handleVerify}>
-          <p className="auth-form-info">
-            Enter the code we emailed to <strong>{email}</strong>.
-          </p>
-          <label>
-            Code
-            <input
-              value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value)}
-              inputMode="numeric"
-              autoFocus
-              required
-            />
-          </label>
-          {error && <p className="auth-form-error">{error}</p>}
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Verifying..." : "Verify code"}
-          </button>
-        </form>
-      )}
+          {step === "verify" && (
+            <form onSubmit={handleVerify} className="flex flex-col gap-4">
+              <p className="text-sm text-muted-foreground">
+                Enter the code we emailed to <strong className="text-foreground">{email}</strong>.
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="otp">Code</Label>
+                <Input
+                  id="otp"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  inputMode="numeric"
+                  autoFocus
+                  required
+                />
+              </div>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Verifying..." : "Verify code"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={startOver}>
+                Use a different email
+              </Button>
+            </form>
+          )}
 
-      {step === "form" && (
-        <>
-          <div className="auth-form-mode">
-            <button
-              type="button"
-              className={mode === "link" ? "active" : ""}
-              onClick={() => setMode("link")}
-            >
-              Email me a link
-            </button>
-            <button
-              type="button"
-              className={mode === "code" ? "active" : ""}
-              onClick={() => setMode("code")}
-            >
-              Email me a code
-            </button>
-          </div>
+          {step === "form" && (
+            <div className="flex flex-col gap-5">
+              <Tabs value={mode} onValueChange={(value) => setMode(value as Mode)}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="link">Email me a link</TabsTrigger>
+                  <TabsTrigger value="code">Email me a code</TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-          <form onSubmit={handleSubmit}>
-            <label>
-              First name
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-            </label>
-            <label>
-              Last name
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-            </label>
-            <label>
-              Email
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
-            {error && <p className="auth-form-error">{error}</p>}
-            <button type="submit" disabled={submitting}>
-              {submitting ? "Sending..." : mode === "link" ? "Send link" : "Send code"}
-            </button>
-          </form>
-        </>
-      )}
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="firstName">First name</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="lastName">Last name</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? "Sending..." : mode === "link" ? "Send link" : "Send code"}
+                </Button>
+              </form>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      <p className="auth-form-switch">
-        Already have an account? <Link to="/login">Log in</Link>
+      <p className="text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link to="/login" className="font-medium">
+          Log in
+        </Link>
       </p>
     </div>
   );
