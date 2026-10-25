@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import type {
   AssetType,
   InitiateUploadRequest,
-  UploadPart,
   UploadSession,
 } from "@/lib/allium/asset-manager";
 import { CheckCircle2, Loader2, Upload, XCircle } from "lucide-react";
@@ -132,87 +131,77 @@ export default function UploadDialog({
     setError(null);
 
     try {
-      // 1. Resume an interrupted upload for this filename if one exists, else initiate.
+      // 1. Initiate a fresh upload.
       setStatusText("Preparing upload...");
-      let session = await assetManager.upload.getSession(file.name);
-      let existingParts: UploadPart[] = [];
-
-      if (session) {
-        setStatusText("Resuming previous upload...");
-        existingParts = await assetManager.upload.listParts(session.objectName, session.uploadId);
-      } else {
-        const initiateData: InitiateUploadRequest = {
-          orgId,
-          projectId,
-          userId,
-          assetType,
-          assetFilename: file.name,
-          assetDisplayName: displayName || undefined,
-          ...(assetType === "UNREAL_PROJECT"
-            ? {
-                unrealProjectDisplayName: displayName || undefined,
-                unrealEngineVersion: ueVersion,
-                target,
-                selfPackaged: true,
-              }
-            : { other_3dDisplayName: displayName || undefined }),
-        };
-        const initiated = await assetManager.upload.initiate(initiateData);
-        session = {
-          orgId: initiated.orgId,
-          projectId: initiated.projectId,
-          assetId: initiated.assetId,
-          assetVersionId: initiated.assetVersionId,
-          uploadId: initiated.uploadId,
-          objectName: initiated.objectName,
-        };
-      }
+      const initiateData: InitiateUploadRequest = {
+        orgId,
+        projectId,
+        userId,
+        assetType,
+        assetFilename: file.name,
+        assetDisplayName: displayName || undefined,
+        ...(assetType === "UNREAL_PROJECT"
+          ? {
+              unrealProjectDisplayName: displayName || undefined,
+              unrealEngineVersion: ueVersion,
+              target,
+              selfPackaged: true,
+            }
+          : { other_3dDisplayName: displayName || undefined }),
+      };
+      const initiated = await assetManager.upload.initiate(initiateData);
+      const session: UploadSession = {
+        orgId: initiated.orgId,
+        projectId: initiated.projectId,
+        assetId: initiated.assetId,
+        assetVersionId: initiated.assetVersionId,
+        uploadId: initiated.uploadId,
+        objectName: initiated.objectName,
+      };
       sessionRef.current = session;
 
-      // 2. Work out which parts still need uploading.
+      // 2. Every part needs uploading.
       const totalParts = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+      const partNumbers = Array.from({ length: totalParts }, (_, i) => i + 1);
       const parts = new Map<number, string>();
-      for (const p of existingParts) parts.set(p.partNumber, p.etag);
-      const missing: number[] = [];
-      for (let n = 1; n <= totalParts; n++) if (!parts.has(n)) missing.push(n);
 
-      setProgress({ done: parts.size, total: totalParts });
+      setProgress({ done: 0, total: totalParts });
 
-      // 3. Batch-fetch signed URLs for the missing parts.
-      if (missing.length > 0) {
-        setStatusText(`Uploading ${missing.length} part(s)...`);
-        const signedUrls = await assetManager.upload.batchGetSignedUrls(
-          session.orgId,
-          session.projectId,
-          session.assetId,
-          session.assetVersionId,
-          session.uploadId,
-          session.objectName,
-          missing,
-        );
+      // 3. Batch-fetch signed URLs for every part.
+      setStatusText(`Uploading ${totalParts} part(s)...`);
+      const signedUrls = await assetManager.upload.batchGetSignedUrls(
+        session.orgId,
+        session.projectId,
+        session.assetId,
+        session.assetVersionId,
+        session.uploadId,
+        session.objectName,
+        partNumbers,
+      );
 
-        // 4. PUT each chunk directly to GCS with bounded parallelism; retry once
-        //    with a fresh signed URL on failure (pre-fetched URLs can expire).
-        await runPool(missing, CONCURRENCY, async (partNumber) => {
-          try {
-            const etag = await putPart(partNumber, signedUrls[partNumber]);
-            parts.set(partNumber, etag);
-          } catch {
-            const freshUrl = await assetManager.upload.getSignedUrl(
-              session!.orgId,
-              session!.projectId,
-              session!.assetId,
-              session!.assetVersionId,
-              session!.uploadId,
-              session!.objectName,
-              partNumber,
-            );
-            const etag = await putPart(partNumber, freshUrl);
-            parts.set(partNumber, etag);
-          }
-          setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
-        });
-      }
+      // 4. PUT each chunk directly to GCS with bounded parallelism. On failure,
+      //    pull the session and retry once with a fresh signed URL for that part.
+      await runPool(partNumbers, CONCURRENCY, async (partNumber) => {
+        try {
+          const etag = await putPart(partNumber, signedUrls[partNumber]);
+          parts.set(partNumber, etag);
+        } catch {
+          const current = (await assetManager.upload.getSession(file.name)) ?? session;
+          sessionRef.current = current;
+          const freshUrl = await assetManager.upload.getSignedUrl(
+            current.orgId,
+            current.projectId,
+            current.assetId,
+            current.assetVersionId,
+            current.uploadId,
+            current.objectName,
+            partNumber,
+          );
+          const etag = await putPart(partNumber, freshUrl);
+          parts.set(partNumber, etag);
+        }
+        setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
+      });
 
       // 5. Assemble the object and mark the asset as uploaded.
       setStatusText("Finalizing...");
@@ -355,7 +344,7 @@ export default function UploadDialog({
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-primary to-brand-2 transition-all"
+                className="h-full rounded-full bg-linear-to-r from-primary to-brand-2 transition-all"
                 style={{ width: `${pct}%` }}
               />
             </div>
