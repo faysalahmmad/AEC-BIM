@@ -6,7 +6,7 @@ import type {
   OrganizationRole,
   OrganizationUser,
   Space,
-} from "@alliumcloud/organization-service";
+} from "@/lib/allium/organization-service";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -20,7 +20,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import organization from "../lib/organization";
+import { organization } from "@/lib/allium/organization-service";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Actions, Profile } from "@alliumcloud/avatar-sso";
-import sso from "../lib/sso";
+import type { Actions, Profile } from "@/lib/allium/avatar-sso";
+import { sso } from "@/lib/allium/avatar-sso";
 
 export interface EventLogEntry {
   id: number;

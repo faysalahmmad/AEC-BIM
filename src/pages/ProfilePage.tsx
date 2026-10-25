@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
-import sso from "../lib/sso";
+import { sso } from "@/lib/allium/avatar-sso";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";

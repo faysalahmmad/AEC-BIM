@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import type { Organization } from "@alliumcloud/organization-service";
+import type { Organization } from "@/lib/allium/organization-service";
 import { ArrowUpRight, Building2, Plus } from "lucide-react";
-import organization from "../lib/organization";
+import { organization } from "@/lib/allium/organization-service";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

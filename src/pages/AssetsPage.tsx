@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { UpdateProfilePayload } from "@alliumcloud/avatar-sso";
+import type { UpdateProfilePayload } from "@/lib/allium/avatar-sso";
 import {
   Check,
   ImageOff,
@@ -9,7 +9,7 @@ import {
   Shirt,
   Skull as SkullIcon,
 } from "lucide-react";
-import sso from "../lib/sso";
+import { sso } from "@/lib/allium/avatar-sso";
 import { useAuth } from "../context/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";

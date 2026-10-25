@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
-import sso from "../lib/sso";
+import { sso } from "@/lib/allium/avatar-sso";
 import { useAuth } from "../context/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import sso from "../lib/sso";
+import { sso } from "@/lib/allium/avatar-sso";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import EventLog from "./EventLog";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/assets", label: "Build Avatar", end: false },
+  { to: "/projects", label: "Projects", end: false },
   { to: "/organizations", label: "Organizations", end: false },
 ];
 

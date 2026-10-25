@@ -8,8 +8,8 @@ if (!sdkKey) {
   );
 }
 
-const sso = new SSO({
+export const sso = new SSO({
   sdkKey: sdkKey ?? "",
 });
 
-export default sso;
+export type * from "@alliumcloud/avatar-sso";

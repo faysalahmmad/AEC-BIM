@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import type { Space, SpaceInvite, SpaceRole, SpaceUser } from "@alliumcloud/organization-service";
+import type { Space, SpaceInvite, SpaceRole, SpaceUser } from "@/lib/allium/organization-service";
 import {
   ArrowLeft,
   Box,
@@ -13,7 +13,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import organization from "../lib/organization";
+import { organization } from "@/lib/allium/organization-service";
 import {
   AlertDialog,
   AlertDialogAction,

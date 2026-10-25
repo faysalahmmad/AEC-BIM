@@ -1,13 +1,4 @@
-import { createOrganizationSDK } from "@alliumcloud/organization-service";
-import sso from "./sso";
-
-const apiKey = import.meta.env.VITE_ORGANIZATION_API_KEY as string | undefined;
-
-if (!apiKey) {
-  console.warn(
-    "VITE_ORGANIZATION_API_KEY is not set. Copy .env.example to .env.local and add your API key.",
-  );
-}
+import { sso } from "./avatar-sso";
 
 function jwtExpiresAt(token: string): number {
   const [, payload] = token.split(".");
@@ -24,7 +15,9 @@ function jwtExpiresAt(token: string): number {
 // concurrent refreshes behind a single in-flight promise.
 let refreshPromise: Promise<string> | null = null;
 
-async function getAccessToken(): Promise<string> {
+// Shared token bridge for every Allium SDK that authenticates off the Avatar SSO
+// session (organization service, asset manager, ...). Pass this as `accessTokenProvider`.
+export async function getAccessToken(): Promise<string> {
   const { tokens } = await sso.getLocalUser();
   const isExpiringSoon = Date.now() > jwtExpiresAt(tokens.accessToken) - 5 * 60 * 1000;
   if (!isExpiringSoon) return tokens.accessToken;
@@ -39,10 +32,3 @@ async function getAccessToken(): Promise<string> {
   }
   return refreshPromise;
 }
-
-const organization = createOrganizationSDK({
-  apiKey: apiKey ?? "",
-  accessTokenProvider: getAccessToken,
-});
-
-export default organization;
