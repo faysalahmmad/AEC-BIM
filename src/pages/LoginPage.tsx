@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Mode = "link" | "code";
 type Step = "form" | "sent" | "verify";
@@ -16,7 +15,6 @@ const callbackUrl = `${window.location.origin}/callback`;
 
 export default function LoginPage() {
   const { status } = useAuth();
-  const [mode, setMode] = useState<Mode>("link");
   const [step, setStep] = useState<Step>("form");
   const [email, setEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -25,8 +23,7 @@ export default function LoginPage() {
 
   if (status === "authenticated") return <Navigate to="/" replace />;
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const send = async (mode: Mode) => {
     setError(null);
     setSubmitting(true);
     try {
@@ -41,6 +38,12 @@ export default function LoginPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    void send(submitter?.value === "code" ? "code" : "link");
   };
 
   const handleVerify = async (e: FormEvent) => {
@@ -75,7 +78,7 @@ export default function LoginPage() {
     <div className="mx-auto flex w-full max-w-sm flex-col gap-6 text-left">
       <div>
         <h1 className="mb-1">Log in</h1>
-        <p className="text-sm text-muted-foreground">Sign in to your Avatar SSO account.</p>
+        <p className="text-sm text-muted-foreground">Sign in to your account.</p>
       </div>
 
       <Card>
@@ -126,13 +129,6 @@ export default function LoginPage() {
 
           {step === "form" && (
             <div className="flex flex-col gap-5">
-              <Tabs value={mode} onValueChange={(value) => setMode(value as Mode)}>
-                <TabsList className="w-full">
-                  <TabsTrigger value="link">Email me a link</TabsTrigger>
-                  <TabsTrigger value="code">Email me a code</TabsTrigger>
-                </TabsList>
-              </Tabs>
-
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="email">Email</Label>
@@ -150,9 +146,14 @@ export default function LoginPage() {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Sending..." : mode === "link" ? "Send link" : "Send code"}
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button type="submit" value="link" disabled={submitting}>
+                    Email me a link
+                  </Button>
+                  <Button type="submit" value="code" disabled={submitting}>
+                    Email me a code
+                  </Button>
+                </div>
               </form>
 
               <div className="flex items-center gap-3 text-xs tracking-wide text-muted-foreground uppercase before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">
