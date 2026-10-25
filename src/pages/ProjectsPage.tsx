@@ -97,7 +97,7 @@ export default function ProjectsPage() {
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">Organization</span>
           <Select value={orgId ?? undefined} onValueChange={setOrgId}>
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-55">
               <SelectValue placeholder="Select organization" />
             </SelectTrigger>
             <SelectContent>
@@ -117,7 +117,7 @@ export default function ProjectsPage() {
             onValueChange={setProjectId}
             disabled={projects.length === 0}
           >
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-55">
               <SelectValue placeholder={projects.length ? "Select project" : "No projects"} />
             </SelectTrigger>
             <SelectContent>

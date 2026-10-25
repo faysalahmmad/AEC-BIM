@@ -64,7 +64,7 @@ export default function ProfilePage() {
       <Card>
         <CardContent className="flex flex-col gap-6">
           <div className="flex items-center gap-4">
-            <div className="rounded-full bg-gradient-to-br from-primary to-brand-2 p-0.5">
+            <div className="rounded-full bg-linear-to-br from-primary to-brand-2 p-0.5">
               <Avatar size="lg" className="size-16 bg-background">
                 <AvatarImage src={profile.photoURL ?? undefined} alt="" />
                 <AvatarFallback className="bg-transparent font-semibold text-primary">
