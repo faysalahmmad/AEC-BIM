@@ -31,24 +31,25 @@ export default function Layout() {
     return (
       <div className="grid min-h-screen lg:grid-cols-2">
         <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary to-brand-2 p-12 lg:flex lg:flex-col lg:justify-between">
-          <div className="pointer-events-none absolute -top-24 -left-24 size-96 rounded-full bg-white/10 blur-3xl" />
-          <div className="pointer-events-none absolute -right-16 -bottom-32 size-96 rounded-full bg-black/10 blur-3xl" />
+          <div className="pointer-events-none absolute inset-0 bg-blueprint-grid" />
+          <div className="pointer-events-none absolute -top-24 -left-24 size-96 rounded-full bg-on-brand/10 blur-3xl" />
+          <div className="pointer-events-none absolute -right-16 -bottom-32 size-96 rounded-full bg-scrim/10 blur-3xl" />
 
-          <span className="relative z-10 text-sm font-semibold tracking-widest text-white/70 uppercase">
-            Avatar SSO
+          <span className="relative z-10 text-sm font-semibold tracking-widest text-on-brand/70 uppercase">
+            AEC-BIM
           </span>
 
           <div className="relative z-10 max-w-md">
-            <p className="mb-4 text-5xl leading-[1.05] font-semibold tracking-tight text-white">
-              One identity for every world you build.
+            <p className="mb-4 text-5xl leading-[1.05] font-semibold tracking-tight text-on-brand">
+              Building Information Modeling, built on Allium.
             </p>
-            <p className="text-lg text-white/80">
-              Sign in once to manage avatars, organizations, and spaces everywhere your users
-              show up.
+            <p className="text-lg text-on-brand/80">
+              3D modeling, engineering, construction and visualization for AEC projects, all
+              running on the Allium SDKs.
             </p>
           </div>
 
-          <span className="relative z-10 text-sm text-white/60">Powered by Allium Cloud</span>
+          <span className="relative z-10 text-sm text-on-brand/60">Powered by Allium Cloud</span>
         </div>
 
         <div className="flex items-center justify-center px-6 py-12">
@@ -62,7 +63,7 @@ export default function Layout() {
     <div className="flex min-h-screen">
       <aside className="flex w-56 shrink-0 flex-col gap-1 border-r border-border px-3 py-6">
         <span className="mb-6 flex items-center gap-2 px-2.5 font-semibold">
-          <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-primary to-brand-2 text-xs font-bold text-white">
+          <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-primary to-brand-2 text-xs font-bold text-on-brand">
             A
           </span>
           Avatar SSO

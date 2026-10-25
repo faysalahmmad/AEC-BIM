@@ -291,7 +291,7 @@ export default function OrganizationDetailPage() {
                   className="size-14 shrink-0 rounded-lg object-cover"
                 />
               ) : (
-                <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-brand-2 text-lg font-semibold text-white">
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-brand-2 text-lg font-semibold text-on-brand">
                   {initials(detail.name)}
                 </span>
               )}

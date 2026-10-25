@@ -30,14 +30,14 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-brand-2 px-8 py-10">
-        <div className="pointer-events-none absolute -top-16 -right-10 size-64 rounded-full bg-white/10 blur-3xl" />
-        <p className="relative z-10 mb-2 text-sm font-semibold tracking-widest text-white/70 uppercase">
+        <div className="pointer-events-none absolute -top-16 -right-10 size-64 rounded-full bg-on-brand/10 blur-3xl" />
+        <p className="relative z-10 mb-2 text-sm font-semibold tracking-widest text-on-brand/70 uppercase">
           Dashboard
         </p>
-        <h1 className="relative z-10 mb-1 text-white">
+        <h1 className="relative z-10 mb-1 text-on-brand">
           Welcome{profile?.firstName ? `, ${profile.firstName}` : ""}
         </h1>
-        <p className="relative z-10 text-white/80">You're signed in with Avatar SSO.</p>
+        <p className="relative z-10 text-on-brand/80">You're signed in with Avatar SSO.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -47,7 +47,7 @@ export default function DashboardPage() {
             <Link key={feature.to} to={feature.to} className="group">
               <Card className="h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10">
                 <CardContent className="flex flex-col gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-brand-2 text-white">
+                  <span className="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-brand-2 text-on-brand">
                     <Icon className="size-5" />
                   </span>
                   <div>

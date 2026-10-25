@@ -10,6 +10,10 @@
     --font-sans: 'Geist Variable', sans-serif;
     --font-mono: ui-monospace, Consolas, monospace;
     --color-brand-2: var(--brand-2);
+    --color-on-brand: var(--on-brand);
+    --color-scrim: var(--scrim);
+    --color-info: var(--info);
+    --color-warning: var(--warning);
     --color-success: var(--success);
     --color-success-foreground: var(--success-foreground);
     --color-ring: var(--ring);
@@ -41,54 +45,71 @@
 
 :root {
     --background: #ffffff;
-    --foreground: #08060d;
+    --foreground: #0f172a;
     --card: #ffffff;
-    --card-foreground: #08060d;
+    --card-foreground: #0f172a;
     --popover: #ffffff;
-    --popover-foreground: #08060d;
-    --primary: #aa3bff;
+    --popover-foreground: #0f172a;
+    --primary: #1d4ed8;
     --primary-foreground: #ffffff;
-    --brand-2: #ec4899;
-    --secondary: #f4f3ec;
-    --secondary-foreground: #08060d;
-    --muted: #f4f3ec;
-    --muted-foreground: #6b6375;
-    --accent: rgba(170, 59, 255, 0.1);
-    --accent-foreground: #aa3bff;
+    --brand-2: #0e7490;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --muted: #f1f5f9;
+    --muted-foreground: #64748b;
+    --accent: rgba(29, 78, 216, 0.1);
+    --accent-foreground: #1d4ed8;
     --destructive: #dc2626;
+    --on-brand: #ffffff;
+    --scrim: #000000;
+    --info: #2563eb;
+    --warning: #d97706;
     --success: #16a34a;
     --success-foreground: #ffffff;
-    --border: #e5e4e7;
-    --input: #e5e4e7;
-    --ring: rgba(170, 59, 255, 0.5);
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: rgba(29, 78, 216, 0.5);
     --radius: 0.5rem;
     --shadow-color: rgba(0, 0, 0, 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #16171d;
-    --foreground: #f3f4f6;
-    --card: #16171d;
-    --card-foreground: #f3f4f6;
-    --popover: #16171d;
-    --popover-foreground: #f3f4f6;
-    --primary: #c084fc;
-    --primary-foreground: #16171d;
-    --brand-2: #f472b6;
-    --secondary: #1f2028;
-    --secondary-foreground: #f3f4f6;
-    --muted: #1f2028;
-    --muted-foreground: #9ca3af;
-    --accent: rgba(192, 132, 252, 0.15);
-    --accent-foreground: #c084fc;
+    --background: #0b1220;
+    --foreground: #e2e8f0;
+    --card: #0b1220;
+    --card-foreground: #e2e8f0;
+    --popover: #0b1220;
+    --popover-foreground: #e2e8f0;
+    --primary: #3b82f6;
+    --primary-foreground: #0b1220;
+    --brand-2: #0891b2;
+    --secondary: #131c2e;
+    --secondary-foreground: #e2e8f0;
+    --muted: #131c2e;
+    --muted-foreground: #94a3b8;
+    --accent: rgba(59, 130, 246, 0.15);
+    --accent-foreground: #60a5fa;
     --destructive: #f87171;
+    --on-brand: #ffffff;
+    --scrim: #000000;
+    --info: #60a5fa;
+    --warning: #fbbf24;
     --success: #4ade80;
-    --success-foreground: #16171d;
-    --border: #2e303a;
-    --input: #2e303a;
-    --ring: rgba(192, 132, 252, 0.5);
+    --success-foreground: #0b1220;
+    --border: #1e2a3f;
+    --input: #1e2a3f;
+    --ring: rgba(59, 130, 246, 0.5);
     --shadow-color: rgba(0, 0, 0, 0.4);
+  }
+}
+
+@layer utilities {
+  .bg-blueprint-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--on-brand) 8%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--on-brand) 8%, transparent) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 }
 

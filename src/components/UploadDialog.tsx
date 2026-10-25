@@ -349,7 +349,7 @@ export default function UploadDialog({
               {phase === "uploading" ? (
                 <Loader2 className="size-4 animate-spin text-primary" />
               ) : (
-                <CheckCircle2 className="size-4 text-emerald-500" />
+                <CheckCircle2 className="size-4 text-success" />
               )}
               <span>{statusText}</span>
             </div>

@@ -238,12 +238,12 @@ export default function AssetsPage() {
                       </div>
                     )}
                     {equipped && (
-                      <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-gradient-to-br from-primary to-brand-2 text-white shadow">
+                      <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-gradient-to-br from-primary to-brand-2 text-on-brand shadow">
                         <Check className="size-3" />
                       </span>
                     )}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">
-                      <p className="truncate text-xs font-medium text-white">{item.name}</p>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-scrim/70 to-transparent p-2 pt-6">
+                      <p className="truncate text-xs font-medium text-on-brand">{item.name}</p>
                     </div>
                   </button>
                 );

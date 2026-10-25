@@ -33,7 +33,7 @@ export default function HealthBadge() {
 
   const dotColor =
     state.status === "ok"
-      ? "bg-emerald-500"
+      ? "bg-success"
       : state.status === "error"
         ? "bg-destructive"
         : "bg-muted-foreground";

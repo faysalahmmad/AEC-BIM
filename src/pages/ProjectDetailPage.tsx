@@ -31,12 +31,12 @@ import { cn } from "@/lib/utils";
 
 // Coarse per-version progress group → colour dot for the timeline.
 const STATE_GROUP_COLOR: Record<string, string> = {
-  uploading: "bg-blue-500",
-  uploaded: "bg-blue-500",
-  validating: "bg-amber-500",
-  building: "bg-amber-500",
-  deploying: "bg-violet-500",
-  complete: "bg-emerald-500",
+  uploading: "bg-info",
+  uploaded: "bg-info",
+  validating: "bg-warning",
+  building: "bg-warning",
+  deploying: "bg-brand-2",
+  complete: "bg-success",
   failed: "bg-destructive",
   expired: "bg-muted-foreground",
 };
