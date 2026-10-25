@@ -7,6 +7,8 @@ import CallbackPage from "./pages/CallbackPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import AssetsPage from "./pages/AssetsPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
 import OrganizationsPage from "./pages/OrganizationsPage";
 import OrganizationDetailPage from "./pages/OrganizationDetailPage";
 import SpaceDetailPage from "./pages/SpaceDetailPage";
@@ -23,6 +25,8 @@ function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/assets" element={<AssetsPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:assetId" element={<ProjectDetailPage />} />
           <Route path="/organizations" element={<OrganizationsPage />} />
           <Route path="/organizations/:orgId" element={<OrganizationDetailPage />} />
           <Route

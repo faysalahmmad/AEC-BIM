@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Building2, Shirt } from "lucide-react";
+import { ArrowUpRight, Boxes, Building2, Shirt } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -9,6 +9,12 @@ const FEATURES = [
     title: "Build Avatar",
     description: "Equip clothing, materials, a skull, and a body for your avatar.",
     icon: Shirt,
+  },
+  {
+    to: "/projects",
+    title: "Projects",
+    description: "Upload, build, and manage 3D and Unreal Engine project assets.",
+    icon: Boxes,
   },
   {
     to: "/organizations",
@@ -34,7 +40,7 @@ export default function DashboardPage() {
         <p className="relative z-10 text-white/80">You're signed in with Avatar SSO.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {FEATURES.map((feature) => {
           const Icon = feature.icon;
           return (
