@@ -23,6 +23,7 @@ interface AuthContextValue {
   profile: Profile | null;
   events: EventLogEntry[];
   refreshProfile: () => Promise<void>;
+  clearEvents: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -109,9 +110,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const clearEvents = useCallback(() => {
+    setEvents([]);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ status, profile, events, refreshProfile }),
-    [status, profile, events, refreshProfile],
+    () => ({ status, profile, events, refreshProfile, clearEvents }),
+    [status, profile, events, refreshProfile, clearEvents],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

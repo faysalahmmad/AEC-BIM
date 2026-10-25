@@ -8,7 +8,7 @@ import EventLog from "./EventLog";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", end: true },
-  { to: "/assets", label: "Assets", end: false },
+  { to: "/assets", label: "Build Avatar", end: false },
   { to: "/organizations", label: "Organizations", end: false },
 ];
 
@@ -74,7 +74,7 @@ export default function Layout() {
       </aside>
 
       <main className="flex-1 px-8 py-8 pb-16">
-        <div className="mx-auto max-w-[840px]">
+        <div className="mx-auto max-w-[960px]">
           <Outlet />
         </div>
       </main>

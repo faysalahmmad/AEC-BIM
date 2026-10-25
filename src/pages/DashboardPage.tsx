@@ -6,8 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 const FEATURES = [
   {
     to: "/assets",
-    title: "Assets",
-    description: "Browse avatar clothing, materials, skulls, and bodies.",
+    title: "Build Avatar",
+    description: "Equip clothing, materials, a skull, and a body for your avatar.",
     icon: Shirt,
   },
   {
