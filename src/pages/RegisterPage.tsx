@@ -68,7 +68,7 @@ export default function RegisterPage() {
     <div className="mx-auto flex w-full max-w-sm flex-col gap-6 text-left">
       <div>
         <h1 className="mb-1">Register</h1>
-        <p className="text-sm text-muted-foreground">Create your Avatar SSO account.</p>
+        <p className="text-sm text-muted-foreground">Create your AEC-BIM account.</p>
       </div>
 
       <Card>
