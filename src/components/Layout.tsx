@@ -1,17 +1,9 @@
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { sso } from "@/lib/allium/avatar-sso";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import EventLog from "./EventLog";
-
-const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/assets", label: "Build Avatar", end: false },
-  { to: "/projects", label: "Projects", end: false },
-  { to: "/organizations", label: "Organizations", end: false },
-];
 
 export default function Layout() {
   const { status, profile } = useAuth();
@@ -19,13 +11,6 @@ export default function Layout() {
   const handleLogout = async () => {
     await sso.logout();
   };
-
-  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    cn(
-      "rounded-md px-2.5 py-1.5 text-sm opacity-75 transition-all hover:opacity-100",
-      isActive &&
-        "bg-gradient-to-r from-primary to-brand-2 font-semibold text-primary-foreground opacity-100 shadow-md shadow-primary/25",
-    );
 
   if (status !== "authenticated") {
     return (
@@ -60,42 +45,36 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-56 shrink-0 flex-col gap-1 border-r border-border px-3 py-6">
-        <span className="mb-6 flex items-center gap-2 px-2.5 font-semibold">
+    <div className="flex min-h-screen flex-col">
+      <header className="flex items-center justify-between px-8 py-4">
+        <Link to="/" className="flex items-center gap-2 font-semibold text-foreground">
           <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-primary to-brand-2 text-xs font-bold text-on-brand">
             A
           </span>
-          Avatar SSO
-        </span>
-        {NAV_ITEMS.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass}>
-            {item.label}
-          </NavLink>
-        ))}
-      </aside>
+          AEC-BIM
+        </Link>
+        <div className="flex items-center gap-2.5 rounded-full border border-border bg-card/92 py-1.5 pr-1.5 pl-3 text-sm shadow-lg backdrop-blur-sm">
+          <Link to="/profile" className="flex items-center gap-2.5">
+            <Avatar size="sm">
+              <AvatarImage src={profile?.photoURL ?? undefined} alt="" />
+              <AvatarFallback className="bg-accent text-accent-foreground text-xs font-semibold">
+                {profile?.firstName?.[0]}
+                {profile?.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-xs text-muted-foreground">{profile?.email}</span>
+          </Link>
+          <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
+            Log out
+          </Button>
+        </div>
+      </header>
 
-      <main className="flex-1 px-8 py-8 pb-16">
-        <div className="mx-auto max-w-[960px]">
+      <main className="flex-1 px-8 pt-4 pb-16">
+        <div className="mx-auto max-w-6xl">
           <Outlet />
         </div>
       </main>
-
-      <div className="fixed top-4 right-4 z-[1000] flex items-center gap-2.5 rounded-full border border-border bg-card/92 py-1.5 pr-1.5 pl-3 text-sm shadow-lg backdrop-blur-sm">
-        <Link to="/profile" className="flex items-center gap-2.5">
-          <Avatar size="sm">
-            <AvatarImage src={profile?.photoURL ?? undefined} alt="" />
-            <AvatarFallback className="bg-accent text-accent-foreground text-xs font-semibold">
-              {profile?.firstName?.[0]}
-              {profile?.lastName?.[0]}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-xs text-muted-foreground">{profile?.email}</span>
-        </Link>
-        <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
-          Log out
-        </Button>
-      </div>
 
       <EventLog />
     </div>

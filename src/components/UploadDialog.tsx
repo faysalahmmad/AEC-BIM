@@ -4,7 +4,7 @@ import type {
   InitiateUploadRequest,
   UploadSession,
 } from "@/lib/allium/asset-manager";
-import { CheckCircle2, Loader2, Upload, XCircle } from "lucide-react";
+import { CheckCircle2, FileBox, Upload, XCircle } from "lucide-react";
 import { assetManager } from "@/lib/allium/asset-manager";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,22 +17,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 // GCS multipart parts must be at least 5 MiB (except the final part). 8 MiB keeps
 // part counts reasonable while staying comfortably above that floor.
 const CHUNK_SIZE = 8 * 1024 * 1024;
 const CONCURRENCY = 4;
 
-const UE_VERSIONS = ["5.0.3", "5.2.1"] as const;
-const TARGETS = ["Development", "Shipping"] as const;
+const UE_VERSIONS = ["5.2.1", "5.7.4"] as const;
 
 type Phase = "form" | "uploading" | "done" | "error";
 
@@ -40,10 +33,8 @@ interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orgId: string;
-  projectId: string;
   userId: string;
-  orgName?: string;
-  projectName?: string;
+  initialFile?: File | null;
   onUploaded: () => void;
 }
 
@@ -63,6 +54,20 @@ async function runPool<T>(
   await Promise.all(runners);
 }
 
+const MODEL_EXTENSIONS = [".glb", ".gltf", ".fbx", ".obj", ".usd", ".usdz", ".ifc", ".rvt", ".dwg"];
+
+// Default the asset type from the file name; the user can still switch it.
+function guessAssetType(filename: string): AssetType {
+  const name = filename.toLowerCase();
+  return MODEL_EXTENSIONS.some((ext) => name.endsWith(ext)) ? "OTHER_3D" : "UNREAL_PROJECT";
+}
+
+function formatSize(bytes: number): string {
+  return bytes >= 1024 ** 3
+    ? `${(bytes / 1024 ** 3).toFixed(1)} GB`
+    : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+}
+
 function stripQuotes(etag: string): string {
   return etag.replace(/^"|"$/g, "");
 }
@@ -71,17 +76,16 @@ export default function UploadDialog({
   open,
   onOpenChange,
   orgId,
-  projectId,
   userId,
-  orgName,
-  projectName,
+  initialFile = null,
   onUploaded,
 }: UploadDialogProps) {
-  const [assetType, setAssetType] = useState<AssetType>("UNREAL_PROJECT");
+  const [assetType, setAssetType] = useState<AssetType>(() =>
+    initialFile ? guessAssetType(initialFile.name) : "UNREAL_PROJECT",
+  );
   const [displayName, setDisplayName] = useState("");
   const [ueVersion, setUeVersion] = useState<(typeof UE_VERSIONS)[number]>("5.2.1");
-  const [target, setTarget] = useState<(typeof TARGETS)[number]>("Development");
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(initialFile);
 
   const [phase, setPhase] = useState<Phase>("form");
   const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -95,7 +99,6 @@ export default function UploadDialog({
     setAssetType("UNREAL_PROJECT");
     setDisplayName("");
     setUeVersion("5.2.1");
-    setTarget("Development");
     setFile(null);
     setPhase("form");
     setProgress({ done: 0, total: 0 });
@@ -133,21 +136,19 @@ export default function UploadDialog({
     try {
       // 1. Initiate a fresh upload.
       setStatusText("Preparing upload...");
+      const finalName = displayName.trim() || file.name.replace(/\.[^.]+$/, "");
       const initiateData: InitiateUploadRequest = {
         orgId,
-        projectId,
         userId,
         assetType,
         assetFilename: file.name,
-        assetDisplayName: displayName || undefined,
+        assetDisplayName: finalName,
         ...(assetType === "UNREAL_PROJECT"
           ? {
-              unrealProjectDisplayName: displayName || undefined,
+              unrealProjectDisplayName: finalName,
               unrealEngineVersion: ueVersion,
-              target,
-              selfPackaged: true,
             }
-          : { other_3dDisplayName: displayName || undefined }),
+          : { other_3dDisplayName: finalName }),
       };
       const initiated = await assetManager.upload.initiate(initiateData);
       const session: UploadSession = {
@@ -171,7 +172,6 @@ export default function UploadDialog({
       setStatusText(`Uploading ${totalParts} part(s)...`);
       const signedUrls = await assetManager.upload.batchGetSignedUrls(
         session.orgId,
-        session.projectId,
         session.assetId,
         session.assetVersionId,
         session.uploadId,
@@ -190,7 +190,6 @@ export default function UploadDialog({
           sessionRef.current = current;
           const freshUrl = await assetManager.upload.getSignedUrl(
             current.orgId,
-            current.projectId,
             current.assetId,
             current.assetVersionId,
             current.uploadId,
@@ -211,7 +210,6 @@ export default function UploadDialog({
 
       await assetManager.upload.complete({
         orgId: session.orgId,
-        projectId: session.projectId,
         assetId: session.assetId,
         assetType,
         assetVersionId: session.assetVersionId,
@@ -243,114 +241,132 @@ export default function UploadDialog({
   };
 
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const chooseFile = (next: File | null) => {
+    setFile(next);
+    if (next) setAssetType(guessAssetType(next.name));
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New upload</DialogTitle>
-          <DialogDescription>
-            {orgName && projectName
-              ? `Uploading to ${projectName} · ${orgName}`
-              : "Upload a project asset."}
-          </DialogDescription>
+          <DialogTitle className="text-xl">
+            {phase === "done" ? "All set" : phase === "error" ? "Upload failed" : "Upload"}
+          </DialogTitle>
+          {phase === "form" && (
+            <DialogDescription>Pick a file and name it. That is all we need.</DialogDescription>
+          )}
         </DialogHeader>
 
         {phase === "form" && (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label>Asset type</Label>
-              <Select value={assetType} onValueChange={(v) => setAssetType(v as AssetType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="UNREAL_PROJECT">Unreal Project</SelectItem>
-                  <SelectItem value="OTHER_3D">Other 3D</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex flex-col gap-5">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => chooseFile(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-4 rounded-2xl border-2 border-dashed border-border p-4 text-left transition-colors hover:border-primary hover:bg-accent"
+            >
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-brand-2 text-on-brand">
+                {file ? <FileBox className="size-6" /> : <Upload className="size-6" />}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-foreground">
+                  {file ? file.name : "Choose a file"}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {file ? `${formatSize(file.size)} · click to change` : "Unreal project or 3D model"}
+                </span>
+              </span>
+            </button>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="display-name">Display name</Label>
+              <Label htmlFor="display-name">Name</Label>
               <Input
                 id="display-name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="My Project"
+                placeholder={file ? file.name.replace(/\.[^.]+$/, "") : "My model"}
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Type</Label>
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
+                {(
+                  [
+                    ["UNREAL_PROJECT", "Unreal project"],
+                    ["OTHER_3D", "3D model"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setAssetType(value)}
+                    className={cn(
+                      "rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                      assetType === value
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {assetType === "UNREAL_PROJECT" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label>Unreal Engine version</Label>
-                  <Select value={ueVersion} onValueChange={(v) => setUeVersion(v as typeof ueVersion)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {UE_VERSIONS.map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Target</Label>
-                  <Select value={target} onValueChange={(v) => setTarget(v as typeof target)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TARGETS.map((t) => (
-                        <SelectItem key={t} value={t}>
-                          {t}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="flex flex-col gap-1.5">
+                <Label>Unreal Engine version</Label>
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
+                  {UE_VERSIONS.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setUeVersion(v)}
+                      className={cn(
+                        "rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                        ueVersion === v
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {v}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="file">File</Label>
-              <Input
-                id="file"
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-              {file && (
-                <span className="text-xs text-muted-foreground">
-                  {file.name} · {(file.size / (1024 * 1024)).toFixed(1)} MB
-                </span>
-              )}
-            </div>
           </div>
         )}
 
         {(phase === "uploading" || phase === "done") && (
-          <div className="flex flex-col gap-3 py-2">
-            <div className="flex items-center gap-2 text-sm">
-              {phase === "uploading" ? (
-                <Loader2 className="size-4 animate-spin text-primary" />
-              ) : (
-                <CheckCircle2 className="size-4 text-success" />
-              )}
-              <span>{statusText}</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="flex flex-col items-center gap-4 py-6 text-center">
+            {phase === "done" ? (
+              <span className="flex size-16 items-center justify-center rounded-full bg-success/15 text-success">
+                <CheckCircle2 className="size-8" />
+              </span>
+            ) : (
+              <span className="text-5xl font-semibold tracking-tight text-foreground tabular-nums">
+                {pct}%
+              </span>
+            )}
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-linear-to-r from-primary to-brand-2 transition-all"
-                style={{ width: `${pct}%` }}
+                className="h-full rounded-full bg-gradient-to-r from-primary to-brand-2 transition-all duration-300"
+                style={{ width: `${phase === "done" ? 100 : pct}%` }}
               />
             </div>
-            <span className="text-xs text-muted-foreground">
-              {progress.done} / {progress.total} parts · {pct}%
-            </span>
+            <p className="text-sm text-muted-foreground">
+              {phase === "done" ? "Your upload is being processed." : statusText}
+            </p>
           </div>
         )}
 
@@ -363,23 +379,18 @@ export default function UploadDialog({
 
         <DialogFooter>
           {phase === "form" && (
-            <>
-              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={startUpload} disabled={!file}>
-                <Upload className="size-4" />
-                Start upload
-              </Button>
-            </>
+            <Button type="button" size="lg" onClick={startUpload} disabled={!file} className="h-11 w-full">
+              <Upload className="size-4" />
+              Upload
+            </Button>
           )}
           {phase === "uploading" && (
-            <Button type="button" variant="outline" onClick={handleCancel}>
+            <Button type="button" variant="outline" onClick={handleCancel} className="w-full">
               Cancel upload
             </Button>
           )}
           {(phase === "done" || phase === "error") && (
-            <Button type="button" onClick={() => handleOpenChange(false)}>
+            <Button type="button" onClick={() => handleOpenChange(false)} className="h-11 w-full">
               Done
             </Button>
           )}

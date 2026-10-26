@@ -4,14 +4,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import CallbackPage from "./pages/CallbackPage";
-import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import AssetsPage from "./pages/AssetsPage";
-import ProjectsPage from "./pages/ProjectsPage";
-import ProjectDetailPage from "./pages/ProjectDetailPage";
-import OrganizationsPage from "./pages/OrganizationsPage";
-import OrganizationDetailPage from "./pages/OrganizationDetailPage";
-import SpaceDetailPage from "./pages/SpaceDetailPage";
+import AssetDetailPage from "./pages/AssetDetailPage";
 
 function App() {
   return (
@@ -22,17 +17,9 @@ function App() {
         <Route path="/callback" element={<CallbackPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/" element={<AssetsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/assets" element={<AssetsPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:assetId" element={<ProjectDetailPage />} />
-          <Route path="/organizations" element={<OrganizationsPage />} />
-          <Route path="/organizations/:orgId" element={<OrganizationDetailPage />} />
-          <Route
-            path="/organizations/:orgId/spaces/:spaceId"
-            element={<SpaceDetailPage />}
-          />
+          <Route path="/assets/:assetId" element={<AssetDetailPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

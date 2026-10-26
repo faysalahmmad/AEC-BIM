@@ -17,7 +17,7 @@ test("requesting a magic link shows the check-your-email state", async ({ page }
   await expect(page.getByRole("button", { name: "Use a different email" })).toBeVisible();
 });
 
-test("opening the magic link completes sign-in and lands on the dashboard", async ({ page }) => {
+test("opening the magic link completes sign-in and lands on projects", async ({ page }) => {
   await page.goto(`/callback?email=${encodeURIComponent(TEST_EMAIL)}&token=${TEST_TOKEN}`);
 
   await page.waitForURL("/");

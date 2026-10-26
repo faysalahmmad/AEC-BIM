@@ -5,10 +5,10 @@ import type {
   DeleteProjectReport,
   UnrealProjectVersion,
 } from "@/lib/allium/asset-manager";
-import { ArrowLeft, Download, ImageOff, Loader2, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Box, Check, Download, Loader2, Trash2, Upload, X } from "lucide-react";
 import { assetManager } from "@/lib/allium/asset-manager";
 import { useAuth } from "../context/AuthContext";
-import AssetStatusBadges from "../components/AssetStatusBadges";
+import { StatusPill } from "../components/AssetStatusBadges";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -41,7 +41,7 @@ const STATE_GROUP_COLOR: Record<string, string> = {
   expired: "bg-muted-foreground",
 };
 
-export default function ProjectDetailPage() {
+export default function AssetDetailPage() {
   const { assetId } = useParams<{ assetId: string }>();
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -125,7 +125,7 @@ export default function ProjectDetailPage() {
     try {
       const report = await assetManager.sanitization.deleteProjectAndFootprint(assetId);
       if (report.fullyDeleted) {
-        navigate("/projects");
+        navigate("/");
       } else {
         setDeleteReport(report);
       }
@@ -152,74 +152,105 @@ export default function ProjectDetailPage() {
   }
 
   const dirty = name !== asset.name || description !== (asset.description ?? "");
+  const isUnreal = asset.assetType === "UNREAL_PROJECT";
+
+  const steps: { label: string; state: "done" | "active" | "failed" | "waiting" }[] = [
+    {
+      label: "Uploaded",
+      state:
+        asset.uploadStatus === "COMPLETED"
+          ? "done"
+          : asset.uploadStatus === "FAILED"
+            ? "failed"
+            : "active",
+    },
+    {
+      label: "Validated",
+      state:
+        asset.validationStatus === "VALID"
+          ? "done"
+          : asset.validationStatus === "INVALID"
+            ? "failed"
+            : asset.uploadStatus === "COMPLETED"
+              ? "active"
+              : "waiting",
+    },
+    ...(isUnreal
+      ? [
+          {
+            label: "Built",
+            state:
+              asset.buildStatus === "COMPLETED"
+                ? ("done" as const)
+                : asset.buildStatus === "FAILED"
+                  ? ("failed" as const)
+                  : asset.buildStatus === "BUILDING" || asset.buildStatus === "REBUILDING"
+                    ? ("active" as const)
+                    : ("waiting" as const),
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <BackLink />
 
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="mb-1">{asset.name}</h1>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              {asset.assetType === "UNREAL_PROJECT" ? "Unreal Project" : "Other 3D"}
-            </Badge>
-            {asset.downloadUrl && (
-              <a
-                href={asset.downloadUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-              >
-                <Download className="size-3.5" />
-                Download build
-              </a>
-            )}
+      {/* Hero */}
+      <div className="relative min-h-72 overflow-hidden rounded-3xl bg-muted shadow-xl shadow-primary/10 sm:aspect-[21/9]">
+        {asset.thumb ? (
+          <img src={asset.thumb} alt="" className="absolute inset-0 size-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/30 to-brand-2/30">
+            <Box className="size-20 text-primary/50" />
           </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-scrim/80 via-scrim/20 to-transparent" />
+
+        <input
+          ref={thumbInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleThumb(f);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => thumbInputRef.current?.click()}
+          disabled={uploadingThumb}
+          className="absolute top-4 right-4 inline-flex items-center gap-2 rounded-full bg-on-brand/15 px-4 py-2 text-sm font-medium text-on-brand backdrop-blur-md transition-colors hover:bg-on-brand/25 disabled:opacity-60"
+        >
+          {uploadingThumb ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {uploadingThumb ? "Uploading..." : "Change cover"}
+        </button>
+
+        <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-4 p-6 sm:p-8">
+          <div className="min-w-0">
+            <div className="mb-3 flex items-center gap-2">
+              <StatusPill asset={asset} className="backdrop-blur-md" />
+              <span className="text-sm text-on-brand/80">{isUnreal ? "Unreal project" : "3D model"}</span>
+            </div>
+            <h1 className="mb-0 truncate text-4xl text-on-brand">{asset.name}</h1>
+          </div>
+          {asset.downloadUrl && (
+            <Button asChild size="lg" className="h-11 rounded-full px-6">
+              <a href={asset.downloadUrl} target="_blank" rel="noreferrer">
+                <Download className="size-4" />
+                Download
+              </a>
+            </Button>
+          )}
         </div>
       </div>
 
-      <AssetStatusBadges asset={asset} />
-
-      <div className="grid grid-cols-[240px_1fr] gap-6">
-        {/* Thumbnail */}
-        <div className="flex flex-col gap-2">
-          <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-muted">
-            {asset.thumb ? (
-              <img src={asset.thumb} alt="" className="size-full object-cover" />
-            ) : (
-              <ImageOff className="size-8 text-muted-foreground" />
-            )}
-          </div>
-          <input
-            ref={thumbInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleThumb(f);
-            }}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => thumbInputRef.current?.click()}
-            disabled={uploadingThumb}
-          >
-            {uploadingThumb ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Upload className="size-4" />
-            )}
-            {uploadingThumb ? "Uploading..." : "Change thumbnail"}
-          </Button>
-        </div>
-
-        {/* Metadata editor */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        {/* Details */}
         <Card>
           <CardContent className="flex flex-col gap-4">
+            <h2 className="mb-0">Details</h2>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="name">Name</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -231,6 +262,7 @@ export default function ProjectDetailPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
+                placeholder="What is this model?"
                 className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               />
             </div>
@@ -239,22 +271,51 @@ export default function ProjectDetailPage() {
                 <AlertDescription>{saveError}</AlertDescription>
               </Alert>
             )}
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={!dirty || saving}
-              className="self-start"
-            >
+            <Button type="button" onClick={handleSave} disabled={!dirty || saving} className="self-start">
               {saving ? "Saving..." : "Save changes"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Progress */}
+        <Card>
+          <CardContent className="flex flex-col gap-4">
+            <h2 className="mb-0">Progress</h2>
+            <ol className="flex flex-col gap-3">
+              {steps.map((step) => (
+                <li key={step.label} className="flex items-center gap-3 text-sm">
+                  <span
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full",
+                      step.state === "done" && "bg-success/15 text-success",
+                      step.state === "active" && "bg-info/15 text-info",
+                      step.state === "failed" && "bg-destructive/15 text-destructive",
+                      step.state === "waiting" && "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {step.state === "done" && <Check className="size-4" />}
+                    {step.state === "active" && <Loader2 className="size-4 animate-spin" />}
+                    {step.state === "failed" && <X className="size-4" />}
+                    {step.state === "waiting" && <span className="size-1.5 rounded-full bg-current" />}
+                  </span>
+                  <span
+                    className={cn(
+                      step.state === "waiting" ? "text-muted-foreground" : "font-medium text-foreground",
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                </li>
+              ))}
+            </ol>
           </CardContent>
         </Card>
       </div>
 
       {/* Version history (Unreal projects only) */}
-      {asset.assetType === "UNREAL_PROJECT" && (
-        <div>
-          <h2 className="mb-3 text-lg font-semibold">Version history</h2>
+      {isUnreal && (
+        <section>
+          <h2 className="mb-3">Versions</h2>
           {versions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No versions yet.</p>
           ) : (
@@ -274,9 +335,17 @@ export default function ProjectDetailPage() {
                         <div className="flex items-center gap-2">
                           <span className="truncate text-sm font-medium">{version.name}</span>
                           <Badge variant="outline">{version.stateGroup}</Badge>
+                          {version.unrealEngineVersion && (
+                            <Badge variant="secondary">UE {version.unrealEngineVersion}</Badge>
+                          )}
+                          {version.pluginVersionId && (
+                            <Badge variant="secondary" title={version.pluginVersionId}>
+                              Plugin {version.pluginVersionId.slice(0, 8)}
+                            </Badge>
+                          )}
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
-                          {version.state} · {new Date(version.createdAt).toLocaleString()}
+                          {new Date(version.createdAt).toLocaleString()}
                         </p>
                       </div>
                       {version.downloadUrl && (
@@ -295,60 +364,50 @@ export default function ProjectDetailPage() {
               </CardContent>
             </Card>
           )}
-        </div>
+        </section>
       )}
 
-      {/* Danger zone */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold text-destructive">Danger zone</h2>
-        <Card className="border-destructive/40">
-          <CardContent className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">
-              Permanently delete this asset and its entire footprint — GCS files, Kubernetes
-              PVCs, and all database records. This cannot be undone.
-            </p>
+      {/* Delete */}
+      <div className="flex flex-col items-start gap-3">
+        {deleteReport && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              <p className="mb-2 font-medium">
+                Some deletion steps did not complete. Manual cleanup may be required:
+              </p>
+              <ul className="flex flex-col gap-1">
+                {deleteReport.steps.map((step) => (
+                  <li key={step.step} className="text-xs">
+                    {step.success ? "✓" : step.skipped ? "–" : "✗"} {step.step}
+                    {step.error ? ` — ${step.error}` : ""}
+                  </li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
 
-            {deleteReport && (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  <p className="mb-2 font-medium">
-                    Some deletion steps did not complete. Manual cleanup may be required:
-                  </p>
-                  <ul className="flex flex-col gap-1">
-                    {deleteReport.steps.map((step) => (
-                      <li key={step.step} className="text-xs">
-                        {step.success ? "✓" : step.skipped ? "–" : "✗"} {step.step}
-                        {step.error ? ` — ${step.error}` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" variant="destructive" className="self-start" disabled={deleting}>
-                  <Trash2 className="size-4" />
-                  {deleting ? "Deleting..." : "Delete project & footprint"}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this project permanently?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This deletes <strong>{asset.name}</strong> and every associated resource.
-                    This action is irreversible.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>Delete permanently</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button type="button" variant="ghost" className="text-destructive" disabled={deleting}>
+              <Trash2 className="size-4" />
+              {deleting ? "Deleting..." : "Delete asset"}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this asset permanently?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This deletes <strong>{asset.name}</strong> and every associated resource, including
+                files and records. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete}>Delete permanently</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
@@ -357,11 +416,11 @@ export default function ProjectDetailPage() {
 function BackLink() {
   return (
     <Link
-      to="/projects"
+      to="/"
       className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
     >
       <ArrowLeft className="size-4" />
-      Back to projects
+      Back to assets
     </Link>
   );
 }
