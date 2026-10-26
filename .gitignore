@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# npm auth token
+.npmrc
+
 # Playwright
 test-results/
 playwright-report/
