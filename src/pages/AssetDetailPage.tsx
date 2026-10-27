@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import type {
-  AssetWithRelations,
-  DeleteProjectReport,
-  UnrealProjectVersion,
-} from "@/lib/allium/asset-manager";
-import { ArrowLeft, Box, Check, Download, Loader2, Trash2, Upload, X } from "lucide-react";
+import type { AssetWithRelations, UnrealProjectVersion } from "@/lib/allium/asset-manager";
+import { ArrowLeft, Box, Check, Download, Loader2, Play, Trash2, Upload, X } from "lucide-react";
 import { assetManager } from "@/lib/allium/asset-manager";
+import { organization } from "@/lib/allium/allium-core";
 import { useAuth } from "../context/AuthContext";
 import { StatusPill } from "../components/AssetStatusBadges";
+import { useAssetSpaces } from "@/lib/use-asset-spaces";
+import { buildPercent, inProgress } from "@/lib/unreal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -59,7 +58,7 @@ export default function AssetDetailPage() {
 
   const [uploadingThumb, setUploadingThumb] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [deleteReport, setDeleteReport] = useState<DeleteProjectReport | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!assetId) return;
@@ -90,6 +89,43 @@ export default function AssetDetailPage() {
       cancelled = true;
     };
   }, [assetId]);
+
+  // A build takes minutes: refresh the asset and its versions until the newest one is done.
+  const building =
+    inProgress(versions[0]) ||
+    (asset?.uploadStatus === "COMPLETED" &&
+      asset.assetType === "UNREAL_PROJECT" &&
+      versions.length === 0);
+  useEffect(() => {
+    if (!assetId || !building) return;
+    const timer = setInterval(() => {
+      assetManager.assets
+        .getById(assetId)
+        .then(setAsset)
+        .catch(() => {});
+      assetManager.versions
+        .getByAsset(assetId)
+        .then(setVersions)
+        .catch(() => {});
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [assetId, building]);
+
+  // The built asset gets its space, so it can be streamed.
+  const { spaceIds, spaceError } = useAssetSpaces(
+    asset?.orgId ?? null,
+    asset
+      ? [
+          {
+            ...asset,
+            unrealProjects: asset.unrealProjects?.map((p) => ({
+              ...p,
+              versions,
+            })),
+          },
+        ]
+      : [],
+  );
 
   const handleSave = async () => {
     if (!assetId) return;
@@ -122,15 +158,17 @@ export default function AssetDetailPage() {
   const handleDelete = async () => {
     if (!assetId) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
-      const report = await assetManager.sanitization.deleteProjectAndFootprint(assetId);
-      if (report.fullyDeleted) {
-        navigate("/");
-      } else {
-        setDeleteReport(report);
+      // Drop the asset's space first so it does not linger without a project to stream.
+      const spaceId = spaceIds[assetId];
+      if (spaceId) {
+        await organization.spaces.delete(spaceId).catch(() => {});
       }
+      await assetManager.assets.delete(assetId);
+      navigate("/");
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Deletion failed.");
+      setDeleteError(err instanceof Error ? err.message : "Deletion failed.");
     } finally {
       setDeleting(false);
     }
@@ -154,7 +192,10 @@ export default function AssetDetailPage() {
   const dirty = name !== asset.name || description !== (asset.description ?? "");
   const isUnreal = asset.assetType === "UNREAL_PROJECT";
 
-  const steps: { label: string; state: "done" | "active" | "failed" | "waiting" }[] = [
+  const steps: {
+    label: string;
+    state: "done" | "active" | "failed" | "waiting";
+  }[] = [
     {
       label: "Uploaded",
       state:
@@ -223,7 +264,11 @@ export default function AssetDetailPage() {
           disabled={uploadingThumb}
           className="absolute top-4 right-4 inline-flex items-center gap-2 rounded-full bg-on-brand/15 px-4 py-2 text-sm font-medium text-on-brand backdrop-blur-md transition-colors hover:bg-on-brand/25 disabled:opacity-60"
         >
-          {uploadingThumb ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {uploadingThumb ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Upload className="size-4" />
+          )}
           {uploadingThumb ? "Uploading..." : "Change cover"}
         </button>
 
@@ -231,12 +276,22 @@ export default function AssetDetailPage() {
           <div className="min-w-0">
             <div className="mb-3 flex items-center gap-2">
               <StatusPill asset={asset} className="backdrop-blur-md" />
-              <span className="text-sm text-on-brand/80">{isUnreal ? "Unreal project" : "3D model"}</span>
+              <span className="text-sm text-on-brand/80">
+                {isUnreal ? "Unreal project" : "3D model"}
+              </span>
             </div>
             <h1 className="mb-0 truncate text-4xl text-on-brand">{asset.name}</h1>
           </div>
-          {asset.downloadUrl && (
+          {assetId && spaceIds[assetId] && (
             <Button asChild size="lg" className="h-11 rounded-full px-6">
+              <Link to={`/stream/${spaceIds[assetId]}`}>
+                <Play className="size-4 fill-current" />
+                Stream
+              </Link>
+            </Button>
+          )}
+          {asset.downloadUrl && (
+            <Button asChild size="lg" variant="secondary" className="h-11 rounded-full px-6">
               <a href={asset.downloadUrl} target="_blank" rel="noreferrer">
                 <Download className="size-4" />
                 Download
@@ -271,7 +326,12 @@ export default function AssetDetailPage() {
                 <AlertDescription>{saveError}</AlertDescription>
               </Alert>
             )}
-            <Button type="button" onClick={handleSave} disabled={!dirty || saving} className="self-start">
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={!dirty || saving}
+              className="self-start"
+            >
               {saving ? "Saving..." : "Save changes"}
             </Button>
           </CardContent>
@@ -281,6 +341,22 @@ export default function AssetDetailPage() {
         <Card>
           <CardContent className="flex flex-col gap-4">
             <h2 className="mb-0">Progress</h2>
+            {isUnreal && versions[0] && buildPercent(versions[0]) >= 0 && (
+              <div className="flex flex-col gap-1.5">
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-brand-2 transition-all duration-500"
+                    style={{ width: `${buildPercent(versions[0])}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{buildPercent(versions[0])}% built</p>
+              </div>
+            )}
+            {spaceError && (
+              <Alert variant="destructive">
+                <AlertDescription>{spaceError}</AlertDescription>
+              </Alert>
+            )}
             <ol className="flex flex-col gap-3">
               {steps.map((step) => (
                 <li key={step.label} className="flex items-center gap-3 text-sm">
@@ -296,11 +372,15 @@ export default function AssetDetailPage() {
                     {step.state === "done" && <Check className="size-4" />}
                     {step.state === "active" && <Loader2 className="size-4 animate-spin" />}
                     {step.state === "failed" && <X className="size-4" />}
-                    {step.state === "waiting" && <span className="size-1.5 rounded-full bg-current" />}
+                    {step.state === "waiting" && (
+                      <span className="size-1.5 rounded-full bg-current" />
+                    )}
                   </span>
                   <span
                     className={cn(
-                      step.state === "waiting" ? "text-muted-foreground" : "font-medium text-foreground",
+                      step.state === "waiting"
+                        ? "text-muted-foreground"
+                        : "font-medium text-foreground",
                     )}
                   >
                     {step.label}
@@ -369,21 +449,9 @@ export default function AssetDetailPage() {
 
       {/* Delete */}
       <div className="flex flex-col items-start gap-3">
-        {deleteReport && (
+        {deleteError && (
           <Alert variant="destructive">
-            <AlertDescription>
-              <p className="mb-2 font-medium">
-                Some deletion steps did not complete. Manual cleanup may be required:
-              </p>
-              <ul className="flex flex-col gap-1">
-                {deleteReport.steps.map((step) => (
-                  <li key={step.step} className="text-xs">
-                    {step.success ? "✓" : step.skipped ? "–" : "✗"} {step.step}
-                    {step.error ? ` — ${step.error}` : ""}
-                  </li>
-                ))}
-              </ul>
-            </AlertDescription>
+            <AlertDescription>{deleteError}</AlertDescription>
           </Alert>
         )}
 

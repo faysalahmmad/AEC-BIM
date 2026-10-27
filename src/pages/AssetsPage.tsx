@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import type { AssetWithRelations } from "@/lib/allium/asset-manager";
-import { ArrowUpRight, Box, CloudUpload } from "lucide-react";
-import { organization } from "@/lib/allium/organization-service";
+import { ArrowUpRight, Box, CloudUpload, Play } from "lucide-react";
+import { organization } from "@/lib/allium/allium-core";
 import { assetManager } from "@/lib/allium/asset-manager";
 import { useAuth } from "../context/AuthContext";
+import { useAssetSpaces } from "@/lib/use-asset-spaces";
+import { buildPercent, inProgress, isUnreal, versionsOf } from "@/lib/unreal";
 import { StatusPill } from "../components/AssetStatusBadges";
 import { cn } from "@/lib/utils";
 import UploadDialog from "../components/UploadDialog";
@@ -20,12 +22,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const envOrgId = (import.meta.env.VITE_ORG_ID as string | undefined) || null;
-
 export default function AssetsPage() {
   const { profile } = useAuth();
 
-  const [orgId, setOrgId] = useState<string | null>(envOrgId);
+  const [orgId, setOrgId] = useState<string | null>(null);
 
   const [assets, setAssets] = useState<AssetWithRelations[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,9 +41,8 @@ export default function AssetsPage() {
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [orgError, setOrgError] = useState<string | null>(null);
 
-  // Uploads still need an org ID. Use VITE_ORG_ID if set, else resolve the user's first organization.
+  // Uploads still need an org ID. Resolve the user's first organization.
   useEffect(() => {
-    if (envOrgId) return;
     organization.organization
       .getByUser()
       .then((list) => {
@@ -73,19 +72,34 @@ export default function AssetsPage() {
     }
   };
 
-  const loadAssets = () => {
-    setLoading(true);
-    setError(null);
+  const loadAssets = (quiet = false) => {
+    if (!quiet) {
+      setLoading(true);
+      setError(null);
+    }
     assetManager.assets
       .getAll()
       .then(setAssets)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load assets."))
-      .finally(() => setLoading(false));
+      .catch(
+        (err) => !quiet && setError(err instanceof Error ? err.message : "Failed to load assets."),
+      )
+      .finally(() => !quiet && setLoading(false));
   };
 
   useEffect(() => {
     loadAssets();
   }, []);
+
+  // A build takes minutes: keep refreshing while any Unreal asset is still on its way.
+  const building = assets.some((a) => isUnreal(a) && inProgress(versionsOf(a)[0]));
+  useEffect(() => {
+    if (!building) return;
+    const timer = setInterval(() => loadAssets(true), 10_000);
+    return () => clearInterval(timer);
+  }, [building]);
+
+  // Each built Unreal asset gets its space, so it can be streamed from here.
+  const { spaceIds, spaceError } = useAssetSpaces(orgId, assets);
 
   const openUpload = (file: File | null) => {
     if (!orgId) {
@@ -175,9 +189,9 @@ export default function AssetsPage() {
         </DialogContent>
       </Dialog>
 
-      {error && (
+      {(error || spaceError) && (
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{error ?? spaceError}</AlertDescription>
         </Alert>
       )}
 
@@ -193,36 +207,61 @@ export default function AssetsPage() {
         <section>
           <h2 className="mb-4">Your assets</h2>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {assets.map((asset) => (
-              <Link
-                key={asset.id}
-                to={`/assets/${asset.id}`}
-                className="group relative block aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/20"
-              >
-                {asset.thumb ? (
-                  <img
-                    src={asset.thumb}
-                    alt=""
-                    className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary/25 to-brand-2/25">
-                    <Box className="size-12 text-primary/60" />
-                  </div>
-                )}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-scrim/75 via-scrim/10 to-transparent" />
-                <StatusPill asset={asset} className="absolute top-3 right-3 backdrop-blur-md" />
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-semibold text-on-brand">{asset.name}</p>
-                    <p className="text-xs text-on-brand/70">
-                      {asset.assetType === "UNREAL_PROJECT" ? "Unreal project" : "3D model"}
-                    </p>
-                  </div>
-                  <ArrowUpRight className="size-5 shrink-0 text-on-brand opacity-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
+            {assets.map((asset) => {
+              const latest = versionsOf(asset)[0];
+              const building = isUnreal(asset) && inProgress(latest);
+              const spaceId = spaceIds[asset.id];
+              return (
+                <div
+                  key={asset.id}
+                  className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/20"
+                >
+                  <Link to={`/assets/${asset.id}`} className="absolute inset-0 block">
+                    {asset.thumb ? (
+                      <img
+                        src={asset.thumb}
+                        alt=""
+                        className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary/25 to-brand-2/25">
+                        <Box className="size-12 text-primary/60" />
+                      </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-scrim/75 via-scrim/10 to-transparent" />
+                    <StatusPill asset={asset} className="absolute top-3 right-3 backdrop-blur-md" />
+                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-semibold text-on-brand">
+                          {asset.name}
+                        </p>
+                        <p className="text-xs text-on-brand/70">
+                          {asset.assetType === "UNREAL_PROJECT" ? "Unreal project" : "3D model"}
+                        </p>
+                      </div>
+                      <ArrowUpRight className="size-5 shrink-0 text-on-brand opacity-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
+                    </div>
+                    {building && (
+                      <div className="absolute inset-x-0 bottom-0 h-1 bg-on-brand/20">
+                        <div
+                          className="h-full bg-brand-2 transition-all duration-500"
+                          style={{ width: `${Math.max(buildPercent(latest), 3)}%` }}
+                        />
+                      </div>
+                    )}
+                  </Link>
+                  {spaceId && (
+                    <Link
+                      to={`/stream/${spaceId}`}
+                      className="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-105"
+                    >
+                      <Play className="size-3.5 fill-current" />
+                      Stream
+                    </Link>
+                  )}
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
@@ -235,7 +274,7 @@ export default function AssetsPage() {
           orgId={orgId}
           userId={profile.id}
           initialFile={droppedFile}
-          onUploaded={loadAssets}
+          onUploaded={() => loadAssets()}
         />
       )}
     </div>
