@@ -1,11 +1,8 @@
 import { useRef, useState } from "react";
-import type {
-  AssetType,
-  InitiateUploadRequest,
-  UploadSession,
-} from "@/lib/allium/asset-manager";
+import type { AssetType, InitiateUploadRequest, UploadSession } from "@/lib/allium/asset-manager";
 import { CheckCircle2, FileBox, Upload, XCircle } from "lucide-react";
-import { assetManager } from "@/lib/allium/asset-manager";
+import { assetManager, getPluginTags } from "@/lib/allium/asset-manager";
+import { logEvent } from "@/lib/allium/event-log";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,8 +21,6 @@ import { Label } from "@/components/ui/label";
 // part counts reasonable while staying comfortably above that floor.
 const CHUNK_SIZE = 8 * 1024 * 1024;
 const CONCURRENCY = 4;
-
-const UE_VERSIONS = ["5.2.1", "5.7.4"] as const;
 
 type Phase = "form" | "uploading" | "done" | "error";
 
@@ -84,7 +79,6 @@ export default function UploadDialog({
     initialFile ? guessAssetType(initialFile.name) : "UNREAL_PROJECT",
   );
   const [displayName, setDisplayName] = useState("");
-  const [ueVersion, setUeVersion] = useState<(typeof UE_VERSIONS)[number]>("5.2.1");
   const [file, setFile] = useState<File | null>(initialFile);
 
   const [phase, setPhase] = useState<Phase>("form");
@@ -98,7 +92,6 @@ export default function UploadDialog({
   const reset = () => {
     setAssetType("UNREAL_PROJECT");
     setDisplayName("");
-    setUeVersion("5.2.1");
     setFile(null);
     setPhase("form");
     setProgress({ done: 0, total: 0 });
@@ -137,7 +130,18 @@ export default function UploadDialog({
       // 1. Initiate a fresh upload.
       setStatusText("Preparing upload...");
       const finalName = displayName.trim() || file.name.replace(/\.[^.]+$/, "");
-      const initiateData: InitiateUploadRequest = {
+      // Unreal projects are always Multiplayer builds: the plugin tag is the first one Asset
+      // Manager lists, so the user picks nothing.
+      let pluginVersionTag: string | undefined;
+      if (assetType === "UNREAL_PROJECT") {
+        if (!/\.zip$/i.test(file.name)) throw new Error("An Unreal project must be a .zip file.");
+        pluginVersionTag = (await getPluginTags())[0]?.versionTag;
+        if (!pluginVersionTag) throw new Error("No plugin version is available for builds yet.");
+      }
+      // Asset Manager takes the plugin tag; the SDK sends the request body as is.
+      const initiateData: InitiateUploadRequest & {
+        pluginVersionTag?: string;
+      } = {
         orgId,
         userId,
         assetType,
@@ -146,7 +150,8 @@ export default function UploadDialog({
         ...(assetType === "UNREAL_PROJECT"
           ? {
               unrealProjectDisplayName: finalName,
-              unrealEngineVersion: ueVersion,
+              selfPackaged: false,
+              pluginVersionTag,
             }
           : { other_3dDisplayName: finalName }),
       };
@@ -186,6 +191,7 @@ export default function UploadDialog({
           const etag = await putPart(partNumber, signedUrls[partNumber]);
           parts.set(partNumber, etag);
         } catch {
+          logEvent(`upload.part ${partNumber} retry`, false);
           const current = (await assetManager.upload.getSession(file.name)) ?? session;
           sessionRef.current = current;
           const freshUrl = await assetManager.upload.getSignedUrl(
@@ -201,6 +207,7 @@ export default function UploadDialog({
         }
         setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
       });
+      logEvent(`upload.parts ${totalParts}/${totalParts}`);
 
       // 5. Assemble the object and mark the asset as uploaded.
       setStatusText("Finalizing...");
@@ -222,6 +229,7 @@ export default function UploadDialog({
       setStatusText("Upload complete.");
       onUploaded();
     } catch (err) {
+      logEvent("upload ✗", false);
       setPhase("error");
       setError(err instanceof Error ? err.message : "Upload failed.");
     }
@@ -281,7 +289,9 @@ export default function UploadDialog({
                   {file ? file.name : "Choose a file"}
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  {file ? `${formatSize(file.size)} · click to change` : "Unreal project or 3D model"}
+                  {file
+                    ? `${formatSize(file.size)} · click to change`
+                    : "Unreal project (.zip) or 3D model"}
                 </span>
               </span>
             </button>
@@ -321,29 +331,6 @@ export default function UploadDialog({
                 ))}
               </div>
             </div>
-
-            {assetType === "UNREAL_PROJECT" && (
-              <div className="flex flex-col gap-1.5">
-                <Label>Unreal Engine version</Label>
-                <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
-                  {UE_VERSIONS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setUeVersion(v)}
-                      className={cn(
-                        "rounded-lg px-3 py-2 text-sm font-medium transition-all",
-                        ueVersion === v
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -379,7 +366,13 @@ export default function UploadDialog({
 
         <DialogFooter>
           {phase === "form" && (
-            <Button type="button" size="lg" onClick={startUpload} disabled={!file} className="h-11 w-full">
+            <Button
+              type="button"
+              size="lg"
+              onClick={startUpload}
+              disabled={!file}
+              className="h-11 w-full"
+            >
               <Upload className="size-4" />
               Upload
             </Button>
