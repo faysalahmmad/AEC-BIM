@@ -7,6 +7,7 @@ import CallbackPage from "./pages/CallbackPage";
 import ProfilePage from "./pages/ProfilePage";
 import AssetsPage from "./pages/AssetsPage";
 import AssetDetailPage from "./pages/AssetDetailPage";
+import StreamPage from "./pages/StreamPage";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/" element={<AssetsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/assets/:assetId" element={<AssetDetailPage />} />
+          <Route path="/stream/:spaceId" element={<StreamPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

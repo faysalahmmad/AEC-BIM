@@ -13,6 +13,7 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@alliumcloud/allium-content-delivery-sdk": "npm:@alliumcloud/allium-content-delivery-sdk-internal@dev",
     "@alliumcloud/asset-manager": "npm:@alliumcloud/asset-manager-internal@dev",
     "@alliumcloud/avatar-sso": "npm:@alliumcloud/avatar-sso-internal@dev",
     "@alliumcloud/organization-service": "npm:@alliumcloud/organization-service-internal@dev",
