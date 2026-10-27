@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { Maximize2, Minimize2, Trash2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { clearSdkEvents, useSdkEvents } from "@/lib/allium/event-log";
 import { cn } from "@/lib/utils";
 
 export default function EventLog() {
-  const { events, clearEvents } = useAuth();
+  const { events: ssoEvents, clearEvents: clearSsoEvents } = useAuth();
+  const sdkEvents = useSdkEvents();
+  // One feed, newest first: SSO events plus the calls the other SDKs make.
+  const events = [...ssoEvents.map((e) => ({ ...e, ok: true })), ...sdkEvents].sort(
+    (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+  );
+  const clearEvents = () => {
+    clearSsoEvents();
+    clearSdkEvents();
+  };
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -36,7 +46,7 @@ export default function EventLog() {
           </button>
         </div>
       </div>
-      <p className="mb-2 text-[0.68rem] opacity-65">Live feed from sso.onEvents()</p>
+      <p className="mb-2 text-[0.68rem] opacity-65">Live feed from the SDKs</p>
       <ol className="flex flex-col gap-1.5">
         {events.length === 0 && <li className="justify-start opacity-60">No events yet</li>}
         {events.map((event) => (
@@ -44,7 +54,9 @@ export default function EventLog() {
             key={event.id}
             className="flex justify-between gap-2 border-b border-border pb-1.5 last:border-none last:pb-0"
           >
-            <span className="font-mono text-primary">{event.type}</span>
+            <span className={cn("font-mono", event.ok ? "text-primary" : "text-destructive")}>
+              {event.type}
+            </span>
             <time className="whitespace-nowrap opacity-60">
               {event.timestamp.toLocaleTimeString()}
             </time>
