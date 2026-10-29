@@ -1,10 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import type { AssetWithRelations, UnrealProjectVersion } from "@/lib/allium/asset-manager";
-import { ArrowLeft, Box, Check, Download, Loader2, Play, Trash2, Upload, X } from "lucide-react";
+import type {
+  AssetWithRelations,
+  UnrealProjectVersion,
+} from "@/lib/allium/asset-manager";
+import {
+  ArrowLeft,
+  Box,
+  Check,
+  Download,
+  Loader2,
+  Play,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { assetManager } from "@/lib/allium/asset-manager";
 import { organization } from "@/lib/allium/allium-core";
 import { useAuth } from "../context/AuthContext";
+import GlbPreview, { isGlb } from "../components/GlbPreview";
 import { StatusPill } from "../components/AssetStatusBadges";
 import { useAssetSpaces } from "@/lib/use-asset-spaces";
 import { buildPercent, inProgress } from "@/lib/unreal";
@@ -80,7 +94,8 @@ export default function AssetDetailPage() {
         }
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load asset.");
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Failed to load.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -132,7 +147,10 @@ export default function AssetDetailPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      const updated = await assetManager.assets.update(assetId, { name, description });
+      const updated = await assetManager.assets.update(assetId, {
+        name,
+        description,
+      });
       setAsset(updated);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to save.");
@@ -146,10 +164,16 @@ export default function AssetDetailPage() {
     setUploadingThumb(true);
     setSaveError(null);
     try {
-      const updated = await assetManager.assets.uploadThumb(assetId, profile.id, file);
+      const updated = await assetManager.assets.uploadThumb(
+        assetId,
+        profile.id,
+        file,
+      );
       setAsset(updated);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to upload thumbnail.");
+      setSaveError(
+        err instanceof Error ? err.message : "Failed to upload thumbnail.",
+      );
     } finally {
       setUploadingThumb(false);
     }
@@ -183,13 +207,14 @@ export default function AssetDetailPage() {
       <div className="flex flex-col gap-4">
         <BackLink />
         <Alert variant="destructive">
-          <AlertDescription>{error ?? "Asset not found."}</AlertDescription>
+          <AlertDescription>{error ?? "Not found."}</AlertDescription>
         </Alert>
       </div>
     );
   }
 
-  const dirty = name !== asset.name || description !== (asset.description ?? "");
+  const dirty =
+    name !== asset.name || description !== (asset.description ?? "");
   const isUnreal = asset.assetType === "UNREAL_PROJECT";
 
   const steps: {
@@ -225,7 +250,8 @@ export default function AssetDetailPage() {
                 ? ("done" as const)
                 : asset.buildStatus === "FAILED"
                   ? ("failed" as const)
-                  : asset.buildStatus === "BUILDING" || asset.buildStatus === "REBUILDING"
+                  : asset.buildStatus === "BUILDING" ||
+                      asset.buildStatus === "REBUILDING"
                     ? ("active" as const)
                     : ("waiting" as const),
           },
@@ -235,18 +261,33 @@ export default function AssetDetailPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <BackLink />
+      <BackLink
+        to={isUnreal ? "/rooms" : "/items"}
+        label={isUnreal ? "Back to rooms" : "Back to items"}
+      />
 
       {/* Hero */}
       <div className="relative min-h-72 overflow-hidden rounded-3xl bg-muted shadow-xl shadow-primary/10 sm:aspect-[21/9]">
-        {asset.thumb ? (
-          <img src={asset.thumb} alt="" className="absolute inset-0 size-full object-cover" />
+        {!isUnreal &&
+        asset.downloadUrl &&
+        isGlb(asset.objectName ?? asset.name) ? (
+          <GlbPreview
+            src={asset.downloadUrl}
+            interactive
+            className="absolute inset-0 bg-gradient-to-br from-primary/30 to-brand-2/30"
+          />
+        ) : asset.thumb ? (
+          <img
+            src={asset.thumb}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+          />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/30 to-brand-2/30">
             <Box className="size-20 text-primary/50" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-scrim/80 via-scrim/20 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-scrim/80 via-scrim/20 to-transparent" />
 
         <input
           ref={thumbInputRef}
@@ -272,26 +313,37 @@ export default function AssetDetailPage() {
           {uploadingThumb ? "Uploading..." : "Change cover"}
         </button>
 
-        <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-4 p-6 sm:p-8">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-4 p-6 select-none sm:p-8">
           <div className="min-w-0">
             <div className="mb-3 flex items-center gap-2">
               <StatusPill asset={asset} className="backdrop-blur-md" />
               <span className="text-sm text-on-brand/80">
-                {isUnreal ? "Unreal project" : "3D model"}
+                {isUnreal ? "Room" : "Item"}
               </span>
             </div>
-            <h1 className="mb-0 truncate text-4xl text-on-brand">{asset.name}</h1>
+            <h1 className="mb-0 truncate text-4xl text-on-brand">
+              {asset.name}
+            </h1>
           </div>
           {assetId && spaceIds[assetId] && (
-            <Button asChild size="lg" className="h-11 rounded-full px-6">
+            <Button
+              asChild
+              size="lg"
+              className="pointer-events-auto h-11 rounded-full px-6"
+            >
               <Link to={`/stream/${spaceIds[assetId]}`}>
                 <Play className="size-4 fill-current" />
-                Stream
+                Open in designer
               </Link>
             </Button>
           )}
           {asset.downloadUrl && (
-            <Button asChild size="lg" variant="secondary" className="h-11 rounded-full px-6">
+            <Button
+              asChild
+              size="lg"
+              variant="secondary"
+              className="pointer-events-auto h-11 rounded-full px-6"
+            >
               <a href={asset.downloadUrl} target="_blank" rel="noreferrer">
                 <Download className="size-4" />
                 Download
@@ -308,7 +360,11 @@ export default function AssetDetailPage() {
             <h2 className="mb-0">Details</h2>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="name">Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="description">Description</Label>
@@ -349,7 +405,9 @@ export default function AssetDetailPage() {
                     style={{ width: `${buildPercent(versions[0])}%` }}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">{buildPercent(versions[0])}% built</p>
+                <p className="text-xs text-muted-foreground">
+                  {buildPercent(versions[0])}% built
+                </p>
               </div>
             )}
             {spaceError && (
@@ -359,18 +417,25 @@ export default function AssetDetailPage() {
             )}
             <ol className="flex flex-col gap-3">
               {steps.map((step) => (
-                <li key={step.label} className="flex items-center gap-3 text-sm">
+                <li
+                  key={step.label}
+                  className="flex items-center gap-3 text-sm"
+                >
                   <span
                     className={cn(
                       "flex size-7 items-center justify-center rounded-full",
                       step.state === "done" && "bg-success/15 text-success",
                       step.state === "active" && "bg-info/15 text-info",
-                      step.state === "failed" && "bg-destructive/15 text-destructive",
-                      step.state === "waiting" && "bg-muted text-muted-foreground",
+                      step.state === "failed" &&
+                        "bg-destructive/15 text-destructive",
+                      step.state === "waiting" &&
+                        "bg-muted text-muted-foreground",
                     )}
                   >
                     {step.state === "done" && <Check className="size-4" />}
-                    {step.state === "active" && <Loader2 className="size-4 animate-spin" />}
+                    {step.state === "active" && (
+                      <Loader2 className="size-4 animate-spin" />
+                    )}
                     {step.state === "failed" && <X className="size-4" />}
                     {step.state === "waiting" && (
                       <span className="size-1.5 rounded-full bg-current" />
@@ -392,7 +457,7 @@ export default function AssetDetailPage() {
         </Card>
       </div>
 
-      {/* Version history (Unreal projects only) */}
+      {/* Version history (rooms only) */}
       {isUnreal && (
         <section>
           <h2 className="mb-3">Versions</h2>
@@ -408,18 +473,26 @@ export default function AssetDetailPage() {
                       <span
                         className={cn(
                           "size-2.5 shrink-0 rounded-full",
-                          STATE_GROUP_COLOR[version.stateGroup] ?? "bg-muted-foreground",
+                          STATE_GROUP_COLOR[version.stateGroup] ??
+                            "bg-muted-foreground",
                         )}
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium">{version.name}</span>
+                          <span className="truncate text-sm font-medium">
+                            {version.name}
+                          </span>
                           <Badge variant="outline">{version.stateGroup}</Badge>
                           {version.unrealEngineVersion && (
-                            <Badge variant="secondary">UE {version.unrealEngineVersion}</Badge>
+                            <Badge variant="secondary">
+                              UE {version.unrealEngineVersion}
+                            </Badge>
                           )}
                           {version.pluginVersionId && (
-                            <Badge variant="secondary" title={version.pluginVersionId}>
+                            <Badge
+                              variant="secondary"
+                              title={version.pluginVersionId}
+                            >
                               Plugin {version.pluginVersionId.slice(0, 8)}
                             </Badge>
                           )}
@@ -457,22 +530,33 @@ export default function AssetDetailPage() {
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button type="button" variant="ghost" className="text-destructive" disabled={deleting}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive"
+              disabled={deleting}
+            >
               <Trash2 className="size-4" />
-              {deleting ? "Deleting..." : "Delete asset"}
+              {deleting
+                ? "Deleting..."
+                : `Delete ${isUnreal ? "room" : "item"}`}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete this asset permanently?</AlertDialogTitle>
+              <AlertDialogTitle>
+                Delete this asset permanently?
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This deletes <strong>{asset.name}</strong> and every associated resource, including
-                files and records. This cannot be undone.
+                This deletes <strong>{asset.name}</strong> and every associated
+                resource, including files and records. This cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete}>Delete permanently</AlertDialogAction>
+              <AlertDialogAction onClick={handleDelete}>
+                Delete permanently
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -481,14 +565,20 @@ export default function AssetDetailPage() {
   );
 }
 
-function BackLink() {
+function BackLink({
+  to = "/rooms",
+  label = "Back to rooms",
+}: {
+  to?: string;
+  label?: string;
+}) {
   return (
     <Link
-      to="/"
+      to={to}
       className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
     >
       <ArrowLeft className="size-4" />
-      Back to assets
+      {label}
     </Link>
   );
 }

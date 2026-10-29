@@ -1,5 +1,9 @@
 import { useRef, useState } from "react";
-import type { AssetType, InitiateUploadRequest, UploadSession } from "@/lib/allium/asset-manager";
+import type {
+  AssetType,
+  InitiateUploadRequest,
+  UploadSession,
+} from "@/lib/allium/asset-manager";
 import { CheckCircle2, FileBox, Upload, XCircle } from "lucide-react";
 import { assetManager, getPluginTags } from "@/lib/allium/asset-manager";
 import { logEvent } from "@/lib/allium/event-log";
@@ -14,7 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
 // GCS multipart parts must be at least 5 MiB (except the final part). 8 MiB keeps
@@ -29,6 +32,7 @@ interface UploadDialogProps {
   onOpenChange: (open: boolean) => void;
   orgId: string;
   userId: string;
+  kind: UploadKind;
   initialFile?: File | null;
   onUploaded: () => void;
 }
@@ -40,22 +44,53 @@ async function runPool<T>(
   worker: (item: T) => Promise<void>,
 ): Promise<void> {
   let index = 0;
-  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (index < items.length) {
-      const current = items[index++];
-      await worker(current);
-    }
-  });
+  const runners = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (index < items.length) {
+        const current = items[index++];
+        await worker(current);
+      }
+    },
+  );
   await Promise.all(runners);
 }
 
-const MODEL_EXTENSIONS = [".glb", ".gltf", ".fbx", ".obj", ".usd", ".usdz", ".ifc", ".rvt", ".dwg"];
+const MODEL_EXTENSIONS = [
+  ".glb",
+  ".gltf",
+  ".fbx",
+  ".obj",
+  ".usd",
+  ".usdz",
+  ".ifc",
+  ".rvt",
+  ".dwg",
+];
 
-// Default the asset type from the file name; the user can still switch it.
-function guessAssetType(filename: string): AssetType {
-  const name = filename.toLowerCase();
-  return MODEL_EXTENSIONS.some((ext) => name.endsWith(ext)) ? "OTHER_3D" : "UNREAL_PROJECT";
-}
+export type UploadKind = "room" | "item";
+
+// A room is an Unreal project uploaded as a .zip; a room item is a 3D model.
+export const KINDS: Record<
+  UploadKind,
+  { assetType: AssetType; extensions: string[]; title: string; hint: string }
+> = {
+  room: {
+    assetType: "UNREAL_PROJECT",
+    extensions: [".zip"],
+    title: "Upload room",
+    hint: "An Unreal project (.zip)",
+  },
+  item: {
+    assetType: "OTHER_3D",
+    extensions: MODEL_EXTENSIONS,
+    title: "Upload item",
+    hint: "A 3D model (.glb, .fbx, .obj ...)",
+  },
+};
+
+export const hasExtension = (filename: string, exts: string[]) =>
+  exts.some((ext) => filename.toLowerCase().endsWith(ext));
 
 function formatSize(bytes: number): string {
   return bytes >= 1024 ** 3
@@ -72,12 +107,11 @@ export default function UploadDialog({
   onOpenChange,
   orgId,
   userId,
+  kind,
   initialFile = null,
   onUploaded,
 }: UploadDialogProps) {
-  const [assetType, setAssetType] = useState<AssetType>(() =>
-    initialFile ? guessAssetType(initialFile.name) : "UNREAL_PROJECT",
-  );
+  const { assetType, extensions, title, hint } = KINDS[kind];
   const [displayName, setDisplayName] = useState("");
   const [file, setFile] = useState<File | null>(initialFile);
 
@@ -90,7 +124,6 @@ export default function UploadDialog({
   const sessionRef = useRef<UploadSession | null>(null);
 
   const reset = () => {
-    setAssetType("UNREAL_PROJECT");
     setDisplayName("");
     setFile(null);
     setPhase("form");
@@ -111,7 +144,8 @@ export default function UploadDialog({
     const start = (partNumber - 1) * CHUNK_SIZE;
     const blob = file!.slice(start, Math.min(start + CHUNK_SIZE, file!.size));
     const res = await fetch(url, { method: "PUT", body: blob });
-    if (!res.ok) throw new Error(`Part ${partNumber} failed (HTTP ${res.status})`);
+    if (!res.ok)
+      throw new Error(`Part ${partNumber} failed (HTTP ${res.status})`);
     const etag = res.headers.get("etag") ?? res.headers.get("ETag");
     if (!etag) {
       throw new Error(
@@ -134,9 +168,11 @@ export default function UploadDialog({
       // Manager lists, so the user picks nothing.
       let pluginVersionTag: string | undefined;
       if (assetType === "UNREAL_PROJECT") {
-        if (!/\.zip$/i.test(file.name)) throw new Error("An Unreal project must be a .zip file.");
+        if (!/\.zip$/i.test(file.name))
+          throw new Error("An Unreal project must be a .zip file.");
         pluginVersionTag = (await getPluginTags())[0]?.versionTag;
-        if (!pluginVersionTag) throw new Error("No plugin version is available for builds yet.");
+        if (!pluginVersionTag)
+          throw new Error("No plugin version is available for builds yet.");
       }
       // Asset Manager takes the plugin tag; the SDK sends the request body as is.
       const initiateData: InitiateUploadRequest & {
@@ -192,7 +228,8 @@ export default function UploadDialog({
           parts.set(partNumber, etag);
         } catch {
           logEvent(`upload.part ${partNumber} retry`, false);
-          const current = (await assetManager.upload.getSession(file.name)) ?? session;
+          const current =
+            (await assetManager.upload.getSession(file.name)) ?? session;
           sessionRef.current = current;
           const freshUrl = await assetManager.upload.getSignedUrl(
             current.orgId,
@@ -248,23 +285,32 @@ export default function UploadDialog({
     onOpenChange(false);
   };
 
-  const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  const pct =
+    progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const chooseFile = (next: File | null) => {
-    setFile(next);
-    if (next) setAssetType(guessAssetType(next.name));
-  };
+  const fileError =
+    file && !hasExtension(file.name, extensions)
+      ? `Choose a ${kind === "room" ? ".zip file" : `3D model (${extensions.join(" ")})`}.`
+      : null;
+
+  const chooseFile = (next: File | null) => setFile(next);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl">
-            {phase === "done" ? "All set" : phase === "error" ? "Upload failed" : "Upload"}
+            {phase === "done"
+              ? "All set"
+              : phase === "error"
+                ? "Upload failed"
+                : title}
           </DialogTitle>
           {phase === "form" && (
-            <DialogDescription>Pick a file and name it. That is all we need.</DialogDescription>
+            <DialogDescription>
+              {hint}. Pick a file and name it.
+            </DialogDescription>
           )}
         </DialogHeader>
 
@@ -273,6 +319,7 @@ export default function UploadDialog({
             <input
               ref={fileInputRef}
               type="file"
+              accept={extensions.join(",")}
               className="hidden"
               onChange={(e) => chooseFile(e.target.files?.[0] ?? null)}
             />
@@ -282,19 +329,31 @@ export default function UploadDialog({
               className="flex items-center gap-4 rounded-2xl border-2 border-dashed border-border p-4 text-left transition-colors hover:border-primary hover:bg-accent"
             >
               <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-brand-2 text-on-brand">
-                {file ? <FileBox className="size-6" /> : <Upload className="size-6" />}
+                {file ? (
+                  <FileBox className="size-6" />
+                ) : (
+                  <Upload className="size-6" />
+                )}
               </span>
               <span className="min-w-0">
                 <span className="block truncate font-medium text-foreground">
-                  {file ? file.name : "Choose a file"}
+                  {file
+                    ? file.name
+                    : kind === "room"
+                      ? "Choose a room (.zip)"
+                      : "Choose an item"}
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  {file
-                    ? `${formatSize(file.size)} · click to change`
-                    : "Unreal project (.zip) or 3D model"}
+                  {file ? `${formatSize(file.size)} · click to change` : hint}
                 </span>
               </span>
             </button>
+
+            {fileError && (
+              <Alert variant="destructive">
+                <AlertDescription>{fileError}</AlertDescription>
+              </Alert>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="display-name">Name</Label>
@@ -302,34 +361,14 @@ export default function UploadDialog({
                 id="display-name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder={file ? file.name.replace(/\.[^.]+$/, "") : "My model"}
+                placeholder={
+                  file
+                    ? file.name.replace(/\.[^.]+$/, "")
+                    : kind === "room"
+                      ? "My room"
+                      : "My item"
+                }
               />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>Type</Label>
-              <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
-                {(
-                  [
-                    ["UNREAL_PROJECT", "Unreal project"],
-                    ["OTHER_3D", "3D model"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setAssetType(value)}
-                    className={cn(
-                      "rounded-lg px-3 py-2 text-sm font-medium transition-all",
-                      assetType === value
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         )}
@@ -352,7 +391,9 @@ export default function UploadDialog({
               />
             </div>
             <p className="text-sm text-muted-foreground">
-              {phase === "done" ? "Your upload is being processed." : statusText}
+              {phase === "done"
+                ? "Your upload is being processed."
+                : statusText}
             </p>
           </div>
         )}
@@ -370,7 +411,7 @@ export default function UploadDialog({
               type="button"
               size="lg"
               onClick={startUpload}
-              disabled={!file}
+              disabled={!file || !!fileError}
               className="h-11 w-full"
             >
               <Upload className="size-4" />
@@ -378,12 +419,21 @@ export default function UploadDialog({
             </Button>
           )}
           {phase === "uploading" && (
-            <Button type="button" variant="outline" onClick={handleCancel} className="w-full">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              className="w-full"
+            >
               Cancel upload
             </Button>
           )}
           {(phase === "done" || phase === "error") && (
-            <Button type="button" onClick={() => handleOpenChange(false)} className="h-11 w-full">
+            <Button
+              type="button"
+              onClick={() => handleOpenChange(false)}
+              className="h-11 w-full"
+            >
               Done
             </Button>
           )}

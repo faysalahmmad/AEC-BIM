@@ -5,7 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import CallbackPage from "./pages/CallbackPage";
 import ProfilePage from "./pages/ProfilePage";
-import AssetsPage from "./pages/AssetsPage";
+import LibraryPage from "./pages/LibraryPage";
 import AssetDetailPage from "./pages/AssetDetailPage";
 import StreamPage from "./pages/StreamPage";
 
@@ -18,7 +18,9 @@ function App() {
         <Route path="/callback" element={<CallbackPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<AssetsPage />} />
+          <Route path="/" element={<LibraryPage view="designs" />} />
+          <Route path="/rooms" element={<LibraryPage view="rooms" />} />
+          <Route path="/items" element={<LibraryPage view="items" />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/assets/:assetId" element={<AssetDetailPage />} />
           <Route path="/stream/:spaceId" element={<StreamPage />} />

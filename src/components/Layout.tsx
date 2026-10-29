@@ -1,8 +1,9 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { sso } from "@/lib/allium/avatar-sso";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import EventLog from "./EventLog";
 
 export default function Layout() {
@@ -29,12 +30,14 @@ export default function Layout() {
               Building Information Modeling, built on Allium.
             </p>
             <p className="text-lg text-on-brand/80">
-              3D modeling, engineering, construction and visualization for AEC projects, all
-              running on the Allium SDKs.
+              3D modeling, engineering, construction and visualization for AEC
+              projects, all running on the Allium SDKs.
             </p>
           </div>
 
-          <span className="relative z-10 text-sm text-on-brand/60">Powered by Allium Cloud</span>
+          <span className="relative z-10 text-sm text-on-brand/60">
+            Powered by Allium Cloud
+          </span>
         </div>
 
         <div className="flex items-center justify-center px-6 py-12">
@@ -47,12 +50,40 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between px-8 py-4">
-        <Link to="/" className="flex items-center gap-2 font-semibold text-foreground">
+        <Link
+          to="/"
+          className="flex items-center gap-2 font-semibold text-foreground"
+        >
           <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-primary to-brand-2 text-xs font-bold text-on-brand">
             A
           </span>
           AEC-BIM
         </Link>
+        <nav className="flex items-center gap-1 rounded-full bg-muted p-1 text-sm font-medium">
+          {(
+            [
+              ["/", "Designs"],
+              ["/rooms", "Rooms"],
+              ["/items", "Items"],
+            ] as const
+          ).map(([to, label]) => (
+            <NavLink
+              key={to}
+              to={to}
+              end
+              className={({ isActive }) =>
+                cn(
+                  "rounded-full px-4 py-1.5 transition-colors",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+        </nav>
         <div className="flex items-center gap-2.5 rounded-full border border-border bg-card/92 py-1.5 pr-1.5 pl-3 text-sm shadow-lg backdrop-blur-sm">
           <Link to="/profile" className="flex items-center gap-2.5">
             <Avatar size="sm">
@@ -62,9 +93,16 @@ export default function Layout() {
                 {profile?.lastName?.[0]}
               </AvatarFallback>
             </Avatar>
-            <span className="text-xs text-muted-foreground">{profile?.email}</span>
+            <span className="text-xs text-muted-foreground">
+              {profile?.email}
+            </span>
           </Link>
-          <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleLogout}
+          >
             Log out
           </Button>
         </div>
